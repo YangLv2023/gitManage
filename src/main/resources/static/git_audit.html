@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Audit List</title>
+    <script src="/jquery-3.6.0.min.js"></script>
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 5px 10px;
+            margin-right: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        #submitMerge {
+            float: right; /* Align button to the right */
+        }
+    </style>
+</head>
+<body>
+    <button id="submitMerge">发起合并</button>
+    <br/><br/>
+    <br/><br/>
+    <table id="auditList">
+        <tr>
+            <th>流水号</th>
+            <th>服务</th>
+            <th>合并分支</th>
+            <th>目标分支</th>
+            <th>备注</th>
+            <th>提交时间</th>
+            <th>审核时间</th>
+            <th>结果</th>
+            <th>执行记录</th>
+            <th>操作</th>
+        </tr>
+    </table>
+
+    <div id="mergeModal" class="modal">
+        <div class="modal-content">
+            <form id="mergeForm">
+                <label for="serviceName">服务:</label>
+                <select id="serviceName" name="serviceName">
+                    <option value="billservice">billservice</option>
+                    <option value="goodsservice">goodsservice</option>
+                    <option value="StatisticsService">StatisticsService</option>
+                </select>
+                <label for="formBranch">合并分支:</label>
+                <input type="text" id="formBranch" name="formBranch">
+                <label for="targetBranch">目标分支:</label>
+                <select id="targetBranch" name="targetBranch" disabled>
+                    <option value="pre" selected>pre</option>
+                </select>
+                <label for="remark">备注:</label>
+                <textarea id="remark" name="remark"></textarea>
+                <label for="remark">注意：备注格式：marge:用户名+功能</label>
+                <button type="submit">确定</button>
+                <button id="closeModal">关闭</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="auditModal" class="modal">
+        <div class="modal-content">
+            <label for="password">验证:</label>
+            <input type="password" id="password" name="password">
+            <button id="verifyBtn">验证</button>
+        </div>
+    </div>
+
+    <!-- Modal for displaying execLog content -->
+    <div id="execLogModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <p id="execLogContent"></p>
+        </div>
+    </div>
+
+    <div id="responseModal" class="modal">
+        <div class="modal-content" id="responseContent"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Load audit list using AJAX
+            $.get("http://192.168.2.89:5555/shell/select", function(data) {
+                data.forEach(function(item) {
+                    // Create a row for each item in the data
+                    $('#auditList').append('<tr><td hidden>' + item.id + '</td><td>' + item.serialNumber + '</td><td>' + item.serviceName + '</td><td>' + item.formBranch + '</td><td>' + item.targetBranch + '</td><td>' + item.remark + '</td><td>' + item.submitTime + '</td><td>' + item.auditTime + '</td><td>' + item.result + '</td><td><a href="#" class="execLogLink">执行记录</a></td><td><a href="#" class="auditLink">审核</a></td><td hidden>'+item.execLog+'</td></tr>');
+                });
+
+                // Show execLog content in a modal when clicking on "执行记录" link
+                $(document).on('click', '.execLogLink', function() {
+                    var execLogContent = $(this).closest('tr').find('td:nth-child(12)').html();
+                    $('#execLogContent').html(execLogContent);
+                    $('#execLogModal').show();
+                });
+            });
+
+            // Submit merge form
+            $('#submitMerge').on('click', function() {
+                $('#mergeModal').show();
+            });
+
+            $('#mergeForm').on('submit', function(event) {
+                event.preventDefault();
+
+                let formData = {
+                    serviceName: $('#serviceName').val(),
+                    formBranch: $('#formBranch').val(),
+                    targetBranch: $('#targetBranch').val(),
+                    remark: $('#remark').val()
+                };
+
+                if (formData.serviceName && formData.formBranch && formData.remark) {
+                    $.ajax({
+                        url: 'http://192.168.2.89:5555/shell/submit',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(formData),
+                        success: function(response) {
+                            if (response === true) {
+                                alert("提交成功");
+                                location.reload();
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error(error);
+                        }
+                    });
+                } else {
+                    alert("请填写所有必填字段");
+                }
+               /*
+                event.preventDefault();
+                $('#targetBranch').prop('disabled', false);
+                if ($('#service').val() && $('#formBranch').val() && $('#remark').val()) {
+                    $.post("http://192.168.2.89:5555/shell/marge", $(this).serialize(), function(response) {
+                        if (response === true) {
+                            alert("提交成功");
+                            location.reload();
+                        }
+                    });
+                } else {
+                    alert("请填写所有必填字段");
+                }
+                $('#targetBranch').prop('disabled', true);*/
+            });
+
+            // Verify password for
+            // auditing
+            $(document).on('click', '.auditLink', function() {
+                $('#auditModal').show();
+            });
+
+            // Auditing
+            $(document).on('click', '.auditLink', function() {
+                // Get the serial number from the clicked row
+                var serialNumber = $(this).closest('tr').find('td:first').text();
+                var service = $(this).closest('tr').find('td:eq(2)').text();
+
+                $('#verifyBtn').off('click').on('click', function() {
+                    var password = $('#password').val().trim();
+
+                    if ((password === '123456' && service == 'billservice')
+                            ||(password === 'ldh' && service == 'StatisticsService')
+                            ||(password === 'zyh' && service == 'goodsservice')) {
+                        // Simulating audit success, you can add your logic here to handle actual password verification
+                        $('#responseContent').text('审核通过');
+                        $('#responseModal').show();
+
+                        // Prepare data in JSON format for POST request
+                        var requestData = {
+                            id: serialNumber,
+                            password: password
+                        };
+
+                        var xhr;
+                        var spinningSymbols = ['\\', '|','/','—']; // Define spinning symbols
+                        var symbolIndex = 0; // Initialize spinning symbol index
+                        var intervalId;
+                        // Function to update response area with spinning symbol
+                        function updateResponseArea(responseText) {
+                            var currentSymbol = spinningSymbols[symbolIndex % spinningSymbols.length];
+                            $('#responseContent').html(responseText + '<br/>' +currentSymbol); // Update the response area with response text and spinning symbol
+                            symbolIndex++; // Move to the next spinning symbol
+                        }
+
+                        // Call the API and print the response in responseContent
+                        $.ajax({
+                            url: 'http://192.168.2.89:5555/shell/marge',
+                            type: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify(requestData),
+                            success: function(data) {
+                                var responseArea = $('#responseContent');
+                                responseArea.empty();
+                                var newLine = '<br>';
+                                var responseText = '';
+
+                                // Create a function to handle streaming data
+                                function addCloseButton() {
+                                    var closeButton = $('<button>确定</button>');
+                                    $('#responseContent').append(closeButton);
+
+                                    closeButton.on('click', function() {
+                                        location.reload(); // Reload the page
+                                    });
+                                }
+
+                                // Create a new XMLHttpRequest for streaming
+                                xhr = new XMLHttpRequest();
+                                xhr.open('GET', 'http://192.168.2.89:5555/shell/marge', true);
+                                xhr.setRequestHeader('Accept', 'text/event-stream');
+
+                                xhr.onreadystatechange = function() {
+                                    if (xhr.readyState === 3 && xhr.status === 200) {
+                                        var responseText = xhr.responseText;
+                                        //updateResponseArea(responseText);
+                                    }
+                                    if (xhr.readyState === 4 && xhr.status === 200) {
+                                        // Request completed, do your final operations here
+                                        clearInterval(intervalId); // Stop the interval timer
+                                        var responseText = xhr.responseText+'<br/>';
+                                        responseArea.html(responseText);
+                                        addCloseButton();
+                                    }
+                                };
+
+                                xhr.send();
+                            },
+                            error: function() {
+                                $('#responseContent').text('Error: 请求失败');
+                            }
+                        });
+
+                        // Update spinning symbol every second
+                        intervalId = setInterval(function() {
+                            updateResponseArea(xhr.responseText); // Update response area with spinning symbol
+                        }, 200);
+                    } else {
+                        $('#responseContent').text('验证失败');
+                        $('#responseModal').show();
+                    }
+
+                });
+            });
+
+            // Close modals
+            $('.modal').on('click', function(event) {
+                if (event.target === this) {
+                    $(this).hide();
+                }
+            });
+
+            $('#closeModal').on('click', function() {
+                $('.modal').hide();
+            });
+        });
+    </script>
+</body>
+</html>
