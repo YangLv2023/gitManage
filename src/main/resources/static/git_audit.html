@@ -79,12 +79,16 @@
                     <option value="billservice">billservice</option>
                     <option value="goodsservice">goodsservice</option>
                     <option value="StatisticsService">StatisticsService</option>
+                    <option value="imexportservice">imexportservice</option>
+                    <option value="saassystemsetting">saassystemsetting</option>
+
                 </select>
                 <label for="formBranch">合并分支:</label>
                 <input type="text" id="formBranch" name="formBranch">
                 <label for="targetBranch">目标分支:</label>
-                <select id="targetBranch" name="targetBranch" disabled>
+                <select id="targetBranch" name="targetBranch">
                     <option value="pre" selected>pre</option>
+                    <option value="pre_temp" selected>pre_temp</option>
                 </select>
                 <label for="remark">备注:</label>
                 <textarea id="remark" name="remark"></textarea>
@@ -194,12 +198,23 @@
                 var serialNumber = $(this).closest('tr').find('td:first').text();
                 var service = $(this).closest('tr').find('td:eq(2)').text();
 
+                $('#password').on('keydown', function(event) {
+                    // 如果按下的是回车键(键码为13)
+                    if (event.keyCode === 13) {
+                        // 触发验证按钮的点击事件
+                        $('#verifyBtn').click();
+                    }
+                });
+
                 $('#verifyBtn').off('click').on('click', function() {
                     var password = $('#password').val().trim();
 
                     if ((password === '123456' && service == 'billservice')
                             ||(password === 'ldh' && service == 'StatisticsService')
-                            ||(password === 'zyh' && service == 'goodsservice')) {
+                            ||(password === 'zyh' && service == 'goodsservice')
+                        ||(password === 'liuzhi' && service == 'imexportservice')
+                        ||(password === 'liuzhi' && service == 'saassystemsetting')
+                    ) {
                         // Simulating audit success, you can add your logic here to handle actual password verification
                         $('#responseContent').text('审核通过');
                         $('#responseModal').show();
