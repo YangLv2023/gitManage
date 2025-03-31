@@ -70,7 +70,7 @@ public class ExecCodeMargeShellController {
                 emitter.send("Shell脚本执行成功");
                 gitAuditRecordMapper.auditGit(gitAuditRecord.getId(),System.currentTimeMillis(),1,output.toString());
                 gitAuditRecord.setResult(1);
-                //messageSend.sendMargeAudit(gitAuditRecord);
+                messageSend.sendMargeAudit(gitAuditRecord);
             } else {
                 emitter.send("Shell脚本执行失败");
                 gitAuditRecordMapper.auditGit(gitAuditRecord.getId(),System.currentTimeMillis(),3,output.toString());
@@ -136,7 +136,7 @@ public class ExecCodeMargeShellController {
                 emitter.send("Shell脚本执行成功");
                 gitAuditRecordMapper.auditGit(gitAuditRecord.getId(),System.currentTimeMillis(),1,output.toString());
                 gitAuditRecord.setResult(1);
-                //messageSend.sendMargeAudit(gitAuditRecord);
+                messageSend.sendCheckAudit(gitAuditRecord);
             } else {
                 emitter.send("Shell脚本执行失败");
                 gitAuditRecordMapper.auditGit(gitAuditRecord.getId(),System.currentTimeMillis(),3,output.toString());
@@ -173,7 +173,7 @@ public class ExecCodeMargeShellController {
                 .setTargetBranch(margeDto.getTargetBranch().trim()).setRemark(margeDto.getRemark().trim())
                 .setSubmitTime(System.currentTimeMillis()).setAuditTime(0L).setCreateTime(System.currentTimeMillis()).setExecLog("").setGitType(margeDto.getGitType());
         gitAuditRecordMapper.saveRecord(gitAuditRecord);
-        //messageSend.sendMargeInfo(gitAuditRecord);
+        messageSend.sendMargeInfo(gitAuditRecord);
        return true;
     }
 
@@ -186,7 +186,7 @@ public class ExecCodeMargeShellController {
                 .setTargetBranch(margeDto.getTargetBranch().trim()).setRemark(margeDto.getRemark().trim())
                 .setSubmitTime(System.currentTimeMillis()).setAuditTime(0L).setCreateTime(System.currentTimeMillis()).setExecLog("").setGitType(margeDto.getGitType());
         gitAuditRecordMapper.saveRecord(gitAuditRecord);
-        //messageSend.sendMargeInfo(gitAuditRecord);
+        messageSend.sendCheckOutInfo(gitAuditRecord);
         return true;
     }
 
