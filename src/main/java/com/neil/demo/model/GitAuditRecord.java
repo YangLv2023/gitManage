@@ -38,6 +38,9 @@ public class GitAuditRecord {
 
     private Integer dataStatus = 1;
 
+    //操作类型
+    private Integer gitType;
+
 
 
 }

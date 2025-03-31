@@ -26,6 +26,8 @@ public class ShellDto {
         private String remark;
         @NotNull(message ="目标分支 不能空" )
         private String targetBranch;
+        @NotNull(message ="提交类型 不能空" )
+        private Integer gitType;
 
     }
 

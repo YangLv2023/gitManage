@@ -5,6 +5,63 @@
     <title>Audit List</title>
     <script src="/jquery-3.6.0.min.js"></script>
     <style>
+
+        .tab-container { margin: 20px 0; }
+        .tab-nav { list-style: none; padding: 0; border-bottom: 1px solid #ccc; }
+        .tab-nav li {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            margin-right: 5px;
+            background: #f0f0f0;
+            border-radius: 5px 5px 0 0;
+            transition: all 0.3s;
+        }
+        .tab-nav li:hover { background: #e0e0e0; }
+        .tab-nav li.active { background: white; border-bottom: 1px solid white; }
+        .tab-content { display: none; padding: 20px 0; }
+        .tab-content.active { display: block; }
+
+        /* 选项卡样式 */
+        .tab-container {
+            margin: 20px 0;
+        }
+        .tab-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            border-bottom: 1px solid #ccc;
+        }
+        .tab-nav li {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            margin-right: 5px;
+            background: #f0f0f0;
+            border-radius: 5px 5px 0 0;
+            transition: all 0.3s;
+        }
+        .tab-nav li:hover {
+            background: #e0e0e0;
+        }
+        .tab-nav li.active {
+            background: white;
+            border-bottom: 1px solid white;
+            margin-bottom: -1px;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+
         .modal {
             display: none;
             position: fixed;
@@ -53,74 +110,227 @@
     </style>
 </head>
 <body>
-    <button id="submitMerge">发起合并</button>
-    <br/><br/>
-    <br/><br/>
-    <table id="auditList">
-        <tr>
-            <th>流水号</th>
-            <th>服务</th>
-            <th>合并分支</th>
-            <th>目标分支</th>
-            <th>备注</th>
-            <th>提交时间</th>
-            <th>审核时间</th>
-            <th>结果</th>
-            <th>执行记录</th>
-            <th>操作</th>
-        </tr>
-    </table>
 
-    <div id="mergeModal" class="modal">
-        <div class="modal-content">
-            <form id="mergeForm">
-                <label for="serviceName">服务:</label>
-                <select id="serviceName" name="serviceName">
-                    <option value="billservice">billservice</option>
-                    <option value="goodsservice">goodsservice</option>
-                    <option value="StatisticsService">StatisticsService</option>
-                    <option value="imexportservice">imexportservice</option>
-                    <option value="saassystemsetting">saassystemsetting</option>
+<!-- 选项卡容器 -->
+<div class="tab-container">
+    <ul class="tab-nav">
+        <li class="active" data-tab="merge-tab">代码合并</li>
+        <li data-tab="newbranch-tab">新开分支</li>
+    </ul>
 
-                </select>
-                <label for="formBranch">合并分支:</label>
-                <input type="text" id="formBranch" name="formBranch">
-                <label for="targetBranch">目标分支:</label>
-                <select id="targetBranch" name="targetBranch">
-                    <option value="pre" selected>pre</option>
-                    <option value="pre_temp">pre_temp</option>
-                </select>
-                <label for="remark">备注:</label>
-                <textarea id="remark" name="remark"></textarea>
-                <label for="remark">注意：备注格式：marge:用户名+功能</label>
-                <button type="submit">确定</button>
-                <button id="closeModal">关闭</button>
-            </form>
+    <!-- 代码合并内容 -->
+    <div id="merge-tab" class="tab-content active">
+        <button id="submitMerge">发起合并</button>
+        <br/><br/>
+        <br/><br/>
+        <table id="auditList">
+            <tr>
+                <th>流水号</th>
+                <th>服务</th>
+                <th>合并分支</th>
+                <th>目标分支</th>
+                <th>备注</th>
+                <th>提交时间</th>
+                <th>审核时间</th>
+                <th>结果</th>
+                <th>执行记录</th>
+                <th>操作</th>
+            </tr>
+        </table>
+
+        <div id="mergeModal" class="modal">
+            <div class="modal-content">
+                <form id="mergeForm">
+                    <label for="serviceName">服务:</label>
+                    <select id="serviceName" name="serviceName">
+                        <option value="billservice">billservice</option>
+                        <option value="goodsservice">goodsservice</option>
+                        <option value="StatisticsService">StatisticsService</option>
+                        <option value="imexportservice">imexportservice</option>
+                        <option value="saassystemsetting">saassystemsetting</option>
+
+                    </select>
+                    <label for="formBranch">合并分支:</label>
+                    <input type="text" id="formBranch" name="formBranch">
+                    <label for="targetBranch">目标分支:</label>
+                    <select id="targetBranch" name="targetBranch">
+                        <option value="pre" selected>pre</option>
+                        <option value="pre_temp">pre_temp</option>
+                    </select>
+                    <label for="remark">备注:</label>
+                    <textarea id="remark" name="remark"></textarea>
+                    <label for="remark">注意：备注格式：marge:用户名+功能</label>
+                    <button type="submit">确定</button>
+                    <button id="closeModal">关闭</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="auditModal" class="modal">
+            <div class="modal-content">
+                <label for="password">验证:</label>
+                <input type="password" id="password" name="password">
+                <button id="verifyBtn">验证</button>
+            </div>
+        </div>
+
+        <!-- Modal for displaying execLog content -->
+        <div id="execLogModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <p id="execLogContent"></p>
+            </div>
+        </div>
+
+        <div id="responseModal" class="modal">
+            <div class="modal-content" id="responseContent"></div>
         </div>
     </div>
 
-    <div id="auditModal" class="modal">
-        <div class="modal-content">
-            <label for="password">验证:</label>
-            <input type="password" id="password" name="password">
-            <button id="verifyBtn">验证</button>
+    <!-- 新增新开分支内容 -->
+    <div id="newbranch-tab" class="tab-content">
+        <button id="submitNewBranch">新开分支</button>
+        <br/><br/>
+        <table id="newbranchList">
+            <tr>
+                <th>流水号</th>
+                <th>服务</th>
+                <th>新开分支</th>
+                <th>来源分支</th>
+                <th>备注</th>
+                <th>提交时间</th>
+                <th>审核时间</th>
+                <th>结果</th>
+                <th>执行记录</th>
+                <th>操作</th>
+            </tr>
+        </table>
+
+        <!-- 新开分支弹窗 -->
+        <div id="newbranchModal" class="modal">
+            <div class="modal-content">
+                <form id="newbranchForm">
+                    <label for="newService">服务:</label>
+                    <select id="newService" name="serviceName">
+                        <option value="billservice">billservice</option>
+                        <option value="goodsservice">goodsservice</option>
+                        <option value="StatisticsService">StatisticsService</option>
+                        <option value="imexportservice">imexportservice</option>
+                        <option value="saassystemsetting">saassystemsetting</option>
+                    </select>
+                    <label for="newBranchName">新开分支:</label>
+                    <input type="text" id="newBranchName" name="newBranchName">
+                    <label for="sourceBranch">来源分支:</label>
+                    <select id="sourceBranch" name="sourceBranch">
+                        <option value="uat">uat</option>
+                        <option value="master">master</option>
+                    </select>
+                    <label for="newRemark">备注:</label>
+                    <textarea id="newRemark" name="remark"></textarea>
+                    <label>注意：备注格式：用户名+新开分支说明</label>
+                    <button type="submit">确定</button>
+                    <button type="button" class="closeModal">关闭</button>
+                </form>
+            </div>
         </div>
     </div>
 
-    <!-- Modal for displaying execLog content -->
-    <div id="execLogModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <p id="execLogContent"></p>
-        </div>
-    </div>
-
-    <div id="responseModal" class="modal">
-        <div class="modal-content" id="responseContent"></div>
-    </div>
-
+</div>
     <script>
+
+
         $(document).ready(function() {
+
+            // 初始化加载所有数据
+            loadData(0); // 代码合并
+            loadData(1); // 新开分支
+
+            // 修复的选项卡切换逻辑
+            $('.tab-nav').on('click', 'li', function() {
+                $('.tab-nav li, .tab-content').removeClass('active');
+                $(this).addClass('active');
+                const tabId = $(this).data('tab');
+                $('#' + tabId).addClass('active');
+
+                // 切换时重新加载数据
+                if(tabId === 'merge-tab') {
+                    loadData(0);
+                } else {
+                    loadData(1);
+                }
+            });
+
+
+            // 新开分支功能逻辑
+            $('#submitNewBranch').on('click', function() {
+                $('#newbranchModal').show();
+            });
+
+            $('#newbranchForm').on('submit', function(e) {
+                e.preventDefault();
+                const formData = {
+                    serviceName: $('#newService').val(),
+                    formBranch: $('#newBranchName').val(),
+                    targetBranch: $('#sourceBranch').val(),
+                    remark: $('#newRemark').val(),
+                    gitType: 1 // 新增类型字段
+                };
+
+                if (!formData.remark) {
+                    alert("请填写备注信息");
+                    return;
+                }
+                if (formData.serviceName && formData.formBranch && formData.remark) {
+                    $.ajax({
+                        url: 'http://192.168.2.89:5555/shell/checkOutNew',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(formData),
+                        success: function(response) {
+                            if (response === true) {
+                                location.reload();
+                            }
+                        }
+                    });
+                } else {
+                    alert("请填写所有必填字段");
+                }
+            });
+
+            // 修改列表查询接口
+            // 数据加载函数
+            function loadData(gitType) {
+                $.get("http://192.168.2.89:5555/shell/select", { gitType: gitType }, function(data) {
+                    const targetTable = gitType === 0 ? '#auditList' : '#newbranchList';
+                    $(targetTable + ' tr:not(:first)').remove(); // 清空旧数据
+
+                    data.forEach(item => {
+                        const branchField = `<td>${item.formBranch}</td><td>${item.targetBranch}</td>` ;
+                        const row = `<tr>
+                    <td hidden>${item.id}</td>
+                    <td>${item.serialNumber}</td>
+                    <td>${item.serviceName}</td>
+                    ${branchField}
+                    <td>${item.remark}</td>
+                    <td>${item.submitTime}</td>
+                    <td>${item.auditTime}</td>
+                    <td>${item.result}</td>
+                    <td><a href="#" class="execLogLink">执行记录</a></td>
+                    <td><a href="#" class="auditLink">审核</a></td>
+                    <td hidden>${item.execLog}</td>
+                </tr>`;
+                        $(targetTable).append(row);
+                    });
+                });
+            }
+
+            // 初始化加载数据
+            loadData(0); // 加载代码合并数据
+            $('.tab-nav li.active').data('tab') === 'newbranch-tab' && loadData(1);
+
+
+
+
             // Load audit list using AJAX
             $.get("http://192.168.2.89:5555/shell/select", function(data) {
                 data.forEach(function(item) {
@@ -148,7 +358,8 @@
                     serviceName: $('#serviceName').val(),
                     formBranch: $('#formBranch').val(),
                     targetBranch: $('#targetBranch').val(),
-                    remark: $('#remark').val()
+                    remark: $('#remark').val(),
+                    gitType: 0
                 };
 
                 if (formData.serviceName && formData.formBranch && formData.remark) {
@@ -194,6 +405,12 @@
 
             // Auditing
             $(document).on('click', '.auditLink', function() {
+
+                const gitType = $('.tab-nav li.active').data('tab') === 'merge-tab' ? 0 : 1;
+                const apiUrl = gitType === 0 ?
+                    'http://192.168.2.89:5555/shell/marge' :
+                    'http://192.168.2.89:5555/shell/checkOut';
+
                 // Get the serial number from the clicked row
                 var serialNumber = $(this).closest('tr').find('td:first').text();
                 var service = $(this).closest('tr').find('td:eq(2)').text();
@@ -238,7 +455,7 @@
 
                         // Call the API and print the response in responseContent
                         $.ajax({
-                            url: 'http://192.168.2.89:5555/shell/marge',
+                            url: apiUrl,
                             type: 'POST',
                             contentType: 'application/json',
                             data: JSON.stringify(requestData),
@@ -260,7 +477,7 @@
 
                                 // Create a new XMLHttpRequest for streaming
                                 xhr = new XMLHttpRequest();
-                                xhr.open('GET', 'http://192.168.2.89:5555/shell/marge', true);
+                                xhr.open('GET', apiUrl, true);
                                 xhr.setRequestHeader('Accept', 'text/event-stream');
 
                                 xhr.onreadystatechange = function() {
