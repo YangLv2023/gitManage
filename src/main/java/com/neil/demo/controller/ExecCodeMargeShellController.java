@@ -42,8 +42,8 @@ public class ExecCodeMargeShellController {
             command.append(" "+ gitAuditRecord.getServiceName() +" ");
             command.append(" "+ gitAuditRecord.getFormBranch() +" ");
             command.append(" false ");
-            /*StringBuffer remark = new StringBuffer(gitAuditRecord.getRemark().replaceAll(" ","—")).append(";")
-                    .append(gitAuditRecord.getFormBranch()).append("-》").append(gitAuditRecord.getTargetBranch());*/
+            StringBuffer remark = new StringBuffer(gitAuditRecord.getRemark().replaceAll(" ","—")).append(";")
+                    .append(gitAuditRecord.getFormBranch()).append("-》").append(gitAuditRecord.getTargetBranch());
             command.append(" "+ gitAuditRecord.getRemark() +" ");
             command.append(" "+ gitAuditRecord.getTargetBranch() +" ");
             System.out.println(command.toString());
@@ -103,34 +103,30 @@ public class ExecCodeMargeShellController {
     @PostMapping(value="checkOut")
     @Async
     public void checkOut(@RequestBody @Valid ShellDto.MargeAuditDto margeAuditDto, HttpServletResponse response) {
-       /* emitter = new SseEmitter();
+        emitter = new SseEmitter();
         try {
             GitAuditRecord gitAuditRecord = gitAuditRecordMapper.getRecordById(margeAuditDto.getId());
 
             StringBuilder command = new StringBuilder("D:\\Program Files\\Git\\bin\\bash.exe");
-            command.append(" -c 'E:/workspace/handday/checkOriginMergeCode.sh ");
+            command.append(" -c 'E:/workspace/handday/checkOutNewCode.sh ");
             command.append(" "+ gitAuditRecord.getServiceName() +" ");
-            command.append(" "+ gitAuditRecord.getFormBranch() +" ");
-            command.append(" false ");
-            *//*StringBuffer remark = new StringBuffer(gitAuditRecord.getRemark().replaceAll(" ","—")).append(";")
-                    .append(gitAuditRecord.getFormBranch()).append("-》").append(gitAuditRecord.getTargetBranch());*//*
-            command.append(" "+ gitAuditRecord.getRemark() +" ");
             command.append(" "+ gitAuditRecord.getTargetBranch() +" ");
+            command.append(" "+ gitAuditRecord.getFormBranch() +" ");
             System.out.println(command.toString());
             Process process = Runtime.getRuntime().exec(command.toString());
             // 读取Shell脚本的输出
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), "UTF-8"));
             StringBuilder output = new StringBuilder();
             String line;
-            Boolean issuccess = Boolean.TRUE;
+            Boolean issuccess = Boolean.FALSE;
             while ((line = reader.readLine()) != null) {
                 byte[] gbkBytes = line.getBytes("UTF-8");
                 String gbkString = new String(gbkBytes, "UTF-8");
                 System.out.println(gbkString);
                 emitter.send(gbkString+"<br/>");
                 output.append(gbkString).append("<br/>");
-                if(gbkString.indexOf("回滚") > 0){
-                    issuccess = false;
+                if(gbkString.contains("操作成功完成")){
+                    issuccess = true;
                 }
             }
 
@@ -140,7 +136,7 @@ public class ExecCodeMargeShellController {
                 emitter.send("Shell脚本执行成功");
                 gitAuditRecordMapper.auditGit(gitAuditRecord.getId(),System.currentTimeMillis(),1,output.toString());
                 gitAuditRecord.setResult(1);
-                messageSend.sendMargeAudit(gitAuditRecord);
+                //messageSend.sendMargeAudit(gitAuditRecord);
             } else {
                 emitter.send("Shell脚本执行失败");
                 gitAuditRecordMapper.auditGit(gitAuditRecord.getId(),System.currentTimeMillis(),3,output.toString());
@@ -153,7 +149,7 @@ public class ExecCodeMargeShellController {
             e.printStackTrace();
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }*/
+        }
 
     }
     @GetMapping(value = "/checkOut", produces = "text/event-stream")

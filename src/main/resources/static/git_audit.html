@@ -166,25 +166,6 @@
             </div>
         </div>
 
-        <div id="auditModal" class="modal">
-            <div class="modal-content">
-                <label for="password">验证:</label>
-                <input type="password" id="password" name="password">
-                <button id="verifyBtn">验证</button>
-            </div>
-        </div>
-
-        <!-- Modal for displaying execLog content -->
-        <div id="execLogModal" class="modal">
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <p id="execLogContent"></p>
-            </div>
-        </div>
-
-        <div id="responseModal" class="modal">
-            <div class="modal-content" id="responseContent"></div>
-        </div>
     </div>
 
     <!-- 新增新开分支内容 -->
@@ -235,12 +216,31 @@
         </div>
     </div>
 
+    <div id="auditModal" class="modal">
+        <div class="modal-content">
+            <label for="password">验证:</label>
+            <input type="password" id="password" name="password">
+            <button id="verifyBtn">验证</button>
+        </div>
+    </div>
+
+    <!-- Modal for displaying execLog content -->
+    <div id="execLogModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <p id="execLogContent"></p>
+        </div>
+    </div>
+
+    <div id="responseModal" class="modal">
+        <div class="modal-content" id="responseContent"></div>
+    </div>
 </div>
     <script>
 
 
         $(document).ready(function() {
-
+            restoreTabState();
             // 初始化加载所有数据
             loadData(0); // 代码合并
             loadData(1); // 新开分支
@@ -250,6 +250,7 @@
                 $('.tab-nav li, .tab-content').removeClass('active');
                 $(this).addClass('active');
                 const tabId = $(this).data('tab');
+                saveTabState(tabId); // 新增：保存状态
                 $('#' + tabId).addClass('active');
 
                 // 切换时重新加载数据
@@ -288,7 +289,11 @@
                         data: JSON.stringify(formData),
                         success: function(response) {
                             if (response === true) {
-                                location.reload();
+                                alert("提交成功");
+                                loadData(1); // 改为仅刷新数据
+                                $('#newbranchModal').hide(); // 关闭弹窗
+                                // 确保标签页状态保持
+                                saveTabState('newbranch-tab');
                             }
                         }
                     });
@@ -324,6 +329,19 @@
                 });
             }
 
+            // 新增：保存当前tab状态
+            function saveTabState(tabId) {
+                localStorage.setItem('activeTab', tabId);
+            }
+
+            // 新增：恢复tab状态
+            function restoreTabState() {
+                const savedTab = localStorage.getItem('activeTab');
+                if (savedTab) {
+                    $(`.tab-nav li[data-tab="${savedTab}"]`).click();
+                }
+            }
+
             // 初始化加载数据
             loadData(0); // 加载代码合并数据
             $('.tab-nav li.active').data('tab') === 'newbranch-tab' && loadData(1);
@@ -340,7 +358,10 @@
 
                 // Show execLog content in a modal when clicking on "执行记录" link
                 $(document).on('click', '.execLogLink', function() {
-                    var execLogContent = $(this).closest('tr').find('td:nth-child(12)').html();
+                    // 获取当前行的所有td元素
+                    const $tds = $(this).closest('tr').find('td');
+                    // 动态查找隐藏的execLog列（最后一个td）
+                    const execLogContent = $tds.last().html();
                     $('#execLogContent').html(execLogContent);
                     $('#execLogModal').show();
                 });
@@ -371,7 +392,8 @@
                         success: function(response) {
                             if (response === true) {
                                 alert("提交成功");
-                                location.reload();
+                                loadData(0); // 改为仅刷新数据
+                                $('#mergeModal').hide(); // 关闭弹窗
                             }
                         },
                         error: function(xhr, status, error) {
@@ -406,14 +428,15 @@
             // Auditing
             $(document).on('click', '.auditLink', function() {
 
+                // 修改审核逻辑中的API判断
                 const gitType = $('.tab-nav li.active').data('tab') === 'merge-tab' ? 0 : 1;
                 const apiUrl = gitType === 0 ?
                     'http://192.168.2.89:5555/shell/marge' :
                     'http://192.168.2.89:5555/shell/checkOut';
 
-                // Get the serial number from the clicked row
+                // 确保获取正确的流水号（隐藏的id字段）
                 var serialNumber = $(this).closest('tr').find('td:first').text();
-                var service = $(this).closest('tr').find('td:eq(2)').text();
+                var service = $(this).closest('tr').find('td:nth-child(3)').text(); // 所有表格中服务名称固定在第
 
                 $('#password').on('keydown', function(event) {
                     // 如果按下的是回车键(键码为13)
