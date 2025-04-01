@@ -15,7 +15,7 @@ public class ShellVo {
         //id
         private Long id;
         //流水号
-        private Integer serialNumber;
+        private Long serialNumber;
         //服务
         private String serviceName;
         //合并分支
@@ -69,6 +69,7 @@ public class ShellVo {
             }
             return this.result;
         }
+
     }
 
 
