@@ -89,7 +89,7 @@ public class MessageSend {
         /*GitAuditRecord gitAuditRecord = new GitAuditRecord();
         gitAuditRecord.setSerialNumber(1123123L).setServiceName("brach1test").setFormBranch("brach1test").setTargetBranch("brach1test").setRemark("备注test");*/
         StringBuilder sb = new StringBuilder();
-        sb.append("### 【").append(" ").append("代码合并请求").append("】").append("\n");
+        sb.append("### 【").append(" ").append("检出执行通知").append("】").append("\n");
         sb.append("> 流水号：").append("<font color=\"comment\">").append(gitAuditRecord.getSerialNumber()).append("</font>\n");
         sb.append("> 检出服务：").append("<font color=\"comment\">").append(gitAuditRecord.getServiceName()).append("</font>\n");
         sb.append("> 新开分支：").append("<font color=\"comment\">").append(gitAuditRecord.getFormBranch()).append("</font>\n");
