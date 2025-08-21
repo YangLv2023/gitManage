@@ -148,6 +148,7 @@
                         <option value="StatisticsService">StatisticsService</option>
                         <option value="imexportservice">imexportservice</option>
                         <option value="saassystemsetting">saassystemsetting</option>
+                        <option value="customerservice">customerservice</option>
 
                     </select>
                     <label for="formBranch">合并分支:</label>
@@ -198,6 +199,7 @@
                         <option value="StatisticsService">StatisticsService</option>
                         <option value="imexportservice">imexportservice</option>
                         <option value="saassystemsetting">saassystemsetting</option>
+                        <option value="customerservice">customerservice</option>
                     </select>
                     <label for="newBranchName">新开分支:</label>
                     <input type="text" id="newBranchName" name="newBranchName">
@@ -454,6 +456,7 @@
                             ||(password === 'zyh' && service == 'goodsservice')
                         ||(password === 'liuzhi' && service == 'imexportservice')
                         ||(password === 'liuzhi' && service == 'saassystemsetting')
+                            ||(password === 'lqy' && service == 'customerservice')
                     ) {
                         // Simulating audit success, you can add your logic here to handle actual password verification
                         $('#responseContent').text('审核通过');
