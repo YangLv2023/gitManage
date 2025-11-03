@@ -204,10 +204,16 @@
                     <label for="newBranchName">新开分支:</label>
                     <input type="text" id="newBranchName" name="newBranchName">
                     <label for="sourceBranch">来源分支:</label>
-                    <select id="sourceBranch" name="sourceBranch">
+                    <!--<select id="sourceBranch" name="sourceBranch">
                         <option value="uat">uat</option>
                         <option value="master">master</option>
-                    </select>
+                    </select>-->
+                    <!-- 关键修改：将select改为input + datalist -->
+                    <input type="text" id="sourceBranch" name="sourceBranch" list="sourceBranchOptions">
+                    <datalist id="sourceBranchOptions">
+                        <option value="uat">uat</option>
+                        <option value="master">master</option>
+                    </datalist>
                     <label for="newRemark">备注:</label>
                     <textarea id="newRemark" name="remark"></textarea>
                     <label>注意：备注格式：用户名+新开分支说明</label>
