@@ -291,7 +291,7 @@
                 }
                 if (formData.serviceName && formData.formBranch && formData.remark) {
                     $.ajax({
-                        url: 'http://192.168.2.89:5555/shell/checkOutNew',
+                        url: 'http://192.168.11.70:5555/shell/checkOutNew',
                         type: 'POST',
                         contentType: 'application/json',
                         data: JSON.stringify(formData),
@@ -313,7 +313,7 @@
             // 修改列表查询接口
             // 数据加载函数
             function loadData(gitType) {
-                $.get("http://192.168.2.89:5555/shell/select", { gitType: gitType }, function(data) {
+                $.get("http://192.168.11.70:5555/shell/select", { gitType: gitType }, function(data) {
                     const targetTable = gitType === 0 ? '#auditList' : '#newbranchList';
                     $(targetTable + ' tr:not(:first)').remove(); // 清空旧数据
 
@@ -358,7 +358,7 @@
 
 
             // Load audit list using AJAX
-            $.get("http://192.168.2.89:5555/shell/select", function(data) {
+            $.get("http://192.168.11.70:5555/shell/select", function(data) {
                 data.forEach(function(item) {
                     // Create a row for each item in the data
                     $('#auditList').append('<tr><td hidden>' + item.id + '</td><td>' + item.serialNumber + '</td><td>' + item.serviceName + '</td><td>' + item.formBranch + '</td><td>' + item.targetBranch + '</td><td>' + item.remark + '</td><td>' + item.submitTime + '</td><td>' + item.auditTime + '</td><td>' + item.result + '</td><td><a href="#" class="execLogLink">执行记录</a></td><td><a href="#" class="auditLink">审核</a></td><td hidden>'+item.execLog+'</td></tr>');
@@ -393,7 +393,7 @@
 
                 if (formData.serviceName && formData.formBranch && formData.remark) {
                     $.ajax({
-                        url: 'http://192.168.2.89:5555/shell/submit',
+                        url: 'http://192.168.11.70:5555/shell/submit',
                         type: 'POST',
                         contentType: 'application/json',
                         data: JSON.stringify(formData),
@@ -415,7 +415,7 @@
                 event.preventDefault();
                 $('#targetBranch').prop('disabled', false);
                 if ($('#service').val() && $('#formBranch').val() && $('#remark').val()) {
-                    $.post("http://192.168.2.89:5555/shell/marge", $(this).serialize(), function(response) {
+                    $.post("http://192.168.11.70:5555/shell/marge", $(this).serialize(), function(response) {
                         if (response === true) {
                             alert("提交成功");
                             location.reload();
@@ -439,8 +439,8 @@
                 // 修改审核逻辑中的API判断
                 const gitType = $('.tab-nav li.active').data('tab') === 'merge-tab' ? 0 : 1;
                 const apiUrl = gitType === 0 ?
-                    'http://192.168.2.89:5555/shell/marge' :
-                    'http://192.168.2.89:5555/shell/checkOut';
+                    'http://192.168.11.70:5555/shell/marge' :
+                    'http://192.168.11.70:5555/shell/checkOut';
 
                 // 确保获取正确的流水号（隐藏的id字段）
                 var serialNumber = $(this).closest('tr').find('td:first').text();

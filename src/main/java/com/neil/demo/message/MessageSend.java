@@ -45,7 +45,7 @@ public class MessageSend {
         sb.append("> 合并分支：").append("<font color=\"comment\">").append(gitAuditRecord.getFormBranch()).append("</font>\n");
         sb.append("> 目标分支：").append("<font color=\"comment\">").append(gitAuditRecord.getTargetBranch()).append("</font>\n");
         sb.append("> 备注信息：").append("<font color=\"comment\">").append(gitAuditRecord.getRemark()).append("</font>\n");
-        sb.append("> [☞  审核执行](http://192.168.2.89:5555/git_audit.html)").append("\n");
+        sb.append("> [☞  审核执行](http://192.168.11.70:5555/git_audit.html)").append("\n");
 
 
         HttpClient client = new HttpClient();
@@ -68,7 +68,7 @@ public class MessageSend {
                 .append(gitAuditRecord.getTargetBranch())
                 .append("已合并")
                 .append(gitAuditRecord.getFormBranch()).append("</font>\n");
-        sb.append("> [☞  执行结果："+new ShellVo.MargeVo().setResult(gitAuditRecord.getResult())+"](http://192.168.2.89:5555/git_audit.html)").append("\n");
+        sb.append("> [☞  执行结果："+new ShellVo.MargeVo().setResult(gitAuditRecord.getResult())+"](http://192.168.11.70:5555/git_audit.html)").append("\n");
 
         HttpClient client = new HttpClient();
         Markdonw markdonw = new Markdonw();
@@ -95,7 +95,7 @@ public class MessageSend {
         sb.append("> 新开分支：").append("<font color=\"comment\">").append(gitAuditRecord.getFormBranch()).append("</font>\n");
         sb.append("> 来源分支：").append("<font color=\"comment\">").append(gitAuditRecord.getTargetBranch()).append("</font>\n");
         sb.append("> 备注信息：").append("<font color=\"comment\">").append(gitAuditRecord.getRemark()).append("</font>\n");
-        sb.append("> [☞  审核执行](http://192.168.2.89:5555/git_audit.html)").append("\n");
+        sb.append("> [☞  审核执行](http://192.168.11.70:5555/git_audit.html)").append("\n");
 
 
         HttpClient client = new HttpClient();
@@ -117,7 +117,7 @@ public class MessageSend {
                 .append("已从")
                 .append(gitAuditRecord.getTargetBranch())
                 .append("拉取").append("</font>\n");
-        sb.append("> [☞  执行结果："+new ShellVo.MargeVo().setResult(gitAuditRecord.getResult())+"](http://192.168.2.89:5555/git_audit.html)").append("\n");
+        sb.append("> [☞  执行结果："+new ShellVo.MargeVo().setResult(gitAuditRecord.getResult())+"](http://192.168.11.70:5555/git_audit.html)").append("\n");
 
         HttpClient client = new HttpClient();
         Markdonw markdonw = new Markdonw();
