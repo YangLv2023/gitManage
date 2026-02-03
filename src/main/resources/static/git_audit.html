@@ -37,7 +37,7 @@
             overflow-x: hidden;
         }
 
-        /* Grid Background */
+        /* Updated Background Style */
         body::before {
             content: '';
             position: fixed;
@@ -45,12 +45,43 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: 
-                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 20px 20px;
+            background: radial-gradient(circle at center, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
+                        radial-gradient(circle at 30% 70%, rgba(121, 40, 202, 0.05) 0%, transparent 50%),
+                        linear-gradient(45deg, transparent 49%, rgba(0, 212, 255, 0.05) 50%, transparent 51%),
+                        linear-gradient(-45deg, transparent 49%, rgba(121, 40, 202, 0.05) 50%, transparent 51%);
+            background-size: 100% 100%, 100% 100%, 50px 50px, 50px 50px;
             pointer-events: none;
             z-index: -1;
+        }
+
+        /* Shooting Stars Animation */
+        .shooting-stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: shoot linear infinite;
+            opacity: 0;
+        }
+
+        @keyframes shoot {
+            0% {
+                transform: translateX(0) translateY(0) scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(var(--distance-x)) translateY(var(--distance-y)) scale(1);
+                opacity: 0;
+            }
         }
 
         .container {
@@ -916,7 +947,52 @@
             $('.closeModal').on('click', function() {
                 $('.modal').hide();
             });
+
+            // Shooting Stars Animation Logic
+            function createShootingStar() {
+                const starsContainer = document.querySelector('.shooting-stars');
+                const star = document.createElement('div');
+                star.classList.add('star');
+
+                // Random size for the star
+                const size = Math.random() * 3 + 1;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+
+                // Random position at the top of the screen
+                const startX = Math.random() * window.innerWidth;
+                const startY = Math.random() * window.innerHeight * 0.3;
+                star.style.left = `${startX}px`;
+                star.style.top = `${startY}px`;
+
+                // Random direction and distance
+                const distanceX = (Math.random() * 200 + 100) * (Math.random() > 0.5 ? 1 : -1);
+                const distanceY = Math.random() * 300 + 200;
+                star.style.setProperty('--distance-x', `${distanceX}px`);
+                star.style.setProperty('--distance-y', `${distanceY}px`);
+
+                // Random animation duration
+                const duration = Math.random() * 3 + 2;
+                star.style.animationDuration = `${duration}s`;
+
+                starsContainer.appendChild(star);
+
+                // Remove the star after animation completes
+                setTimeout(() => {
+                    star.remove();
+                }, duration * 1000);
+            }
+
+            // Create shooting stars at regular intervals
+            setInterval(createShootingStar, 1000);
+            
+            // Create initial shooting stars
+            for (let i = 0; i < 5; i++) {
+                setTimeout(createShootingStar, i * 500);
+            }
         });
     </script>
+    <!-- Shooting Stars Container -->
+    <div class="shooting-stars"></div>
 </body>
 </html>
