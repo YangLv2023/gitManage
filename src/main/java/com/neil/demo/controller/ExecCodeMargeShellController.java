@@ -30,6 +30,11 @@ public class ExecCodeMargeShellController {
 
     SseEmitter emitter;
 
+
+    String url = "C:\\Program Files\\Git\\bin\\bash.exe";
+    //String url = ""D:\\Program Files\\Git\\bin\\bash.exe"";
+
+
     @PostMapping(value="marge")
     @Async
     public void marge(@RequestBody @Valid ShellDto.MargeAuditDto margeAuditDto, HttpServletResponse response) {
@@ -37,7 +42,7 @@ public class ExecCodeMargeShellController {
         try {
             GitAuditRecord gitAuditRecord = gitAuditRecordMapper.getRecordById(margeAuditDto.getId());
 
-            StringBuilder command = new StringBuilder("D:\\Program Files\\Git\\bin\\bash.exe");
+            StringBuilder command = new StringBuilder(url);
             command.append(" -c 'E:/workspace/handday/checkOriginMergeCode.sh ");
             command.append(" "+ gitAuditRecord.getServiceName() +" ");
             command.append(" "+ gitAuditRecord.getFormBranch() +" ");
@@ -107,7 +112,7 @@ public class ExecCodeMargeShellController {
         try {
             GitAuditRecord gitAuditRecord = gitAuditRecordMapper.getRecordById(margeAuditDto.getId());
 
-            StringBuilder command = new StringBuilder("D:\\Program Files\\Git\\bin\\bash.exe");
+            StringBuilder command = new StringBuilder(url);
             command.append(" -c 'E:/workspace/handday/checkOutNewCode.sh ");
             command.append(" "+ gitAuditRecord.getServiceName() +" ");
             command.append(" "+ gitAuditRecord.getTargetBranch() +" ");

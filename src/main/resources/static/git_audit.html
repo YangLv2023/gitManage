@@ -1,252 +1,614 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Audit List</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Management System</title>
     <script src="/jquery-3.6.0.min.js"></script>
     <style>
-
-        .tab-container { margin: 20px 0; }
-        .tab-nav { list-style: none; padding: 0; border-bottom: 1px solid #ccc; }
-        .tab-nav li {
-            display: inline-block;
-            padding: 10px 20px;
-            cursor: pointer;
-            border: 1px solid #ccc;
-            border-bottom: none;
-            margin-right: 5px;
-            background: #f0f0f0;
-            border-radius: 5px 5px 0 0;
-            transition: all 0.3s;
+        :root {
+            --primary-color: #00d4ff;
+            --secondary-color: #7928ca;
+            --accent-color: #ff2d55;
+            --background-color: #0a0a10;
+            --card-background: rgba(16, 16, 24, 0.8);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --glass-effect: rgba(255, 255, 255, 0.05);
+            --shadow-color: rgba(0, 212, 255, 0.2);
         }
-        .tab-nav li:hover { background: #e0e0e0; }
-        .tab-nav li.active { background: white; border-bottom: 1px solid white; }
-        .tab-content { display: none; padding: 20px 0; }
-        .tab-content.active { display: block; }
 
-        /* 选项卡样式 */
-        .tab-container {
-            margin: 20px 0;
-        }
-        .tab-nav {
-            list-style: none;
-            padding: 0;
+        * {
             margin: 0;
-            border-bottom: 1px solid #ccc;
+            padding: 0;
+            box-sizing: border-box;
         }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            background-image: 
+                radial-gradient(circle at 25% 25%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(121, 40, 202, 0.1) 0%, transparent 50%),
+                linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.5));
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Grid Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+            border-radius: 1px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Tab Container */
+        .tab-container {
+            background: var(--card-background);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px var(--shadow-color);
+            margin-bottom: 30px;
+        }
+
+        .tab-nav {
+            display: flex;
+            list-style: none;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
         .tab-nav li {
-            display: inline-block;
-            padding: 10px 20px;
+            margin-right: 20px;
+            position: relative;
             cursor: pointer;
-            border: 1px solid #ccc;
-            border-bottom: none;
-            margin-right: 5px;
-            background: #f0f0f0;
-            border-radius: 5px 5px 0 0;
-            transition: all 0.3s;
+            padding: 12px 24px;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            color: var(--text-secondary);
         }
+
         .tab-nav li:hover {
-            background: #e0e0e0;
+            color: var(--primary-color);
+            background: var(--glass-effect);
         }
+
         .tab-nav li.active {
-            background: white;
-            border-bottom: 1px solid white;
-            margin-bottom: -1px;
+            color: var(--primary-color);
+            background: var(--glass-effect);
         }
+
+        .tab-nav li.active::after {
+            content: '';
+            position: absolute;
+            bottom: -11px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 1px;
+        }
+
         .tab-content {
             display: none;
-            padding: 20px 0;
+            animation: fadeIn 0.5s ease;
         }
+
         .tab-content.active {
             display: block;
         }
 
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
+        /* Button Styles */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            box-shadow: 0 4px 15px var(--shadow-color);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--shadow-color);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--glass-effect);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        /* Table Styles */
+        .table-container {
+            margin-top: 30px;
+            overflow-x: auto;
+            border-radius: 12px;
+            background: var(--glass-effect);
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: rgba(0, 212, 255, 0.1);
+            font-weight: 600;
+            color: var(--primary-color);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Link Styles */
+        a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        a:hover {
+            color: var(--secondary-color);
+        }
+
+        a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            transition: width 0.3s ease;
+        }
+
+        a:hover::after {
+            width: 100%;
+        }
+
+        /* Modal Styles */
         .modal {
             display: none;
             position: fixed;
-            z-index: 1;
+            z-index: 1000;
             left: 0;
             top: 0;
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
         }
+
         .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 50%;
+            background: var(--card-background);
+            backdrop-filter: blur(15px);
+            margin: 10% auto;
+            padding: 40px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px var(--shadow-color);
+            animation: slideIn 0.3s ease;
         }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Form Styles */
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
         label {
-            display: block;
+            font-weight: 500;
+            color: var(--text-primary);
             margin-bottom: 5px;
+            display: block;
         }
-        input,
-        select,
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--glass-effect);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
         textarea {
-            width: 100%;
-            padding: 5px;
-            box-sizing: border-box;
+            resize: vertical;
+            min-height: 100px;
         }
-        button {
-            padding: 5px 10px;
-            margin-right: 10px;
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 10px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
+
+        /* Response Modal */
+        #responseContent {
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+            background: var(--glass-effect);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
         }
-        th, td {
-            border: 1px solid black;
-            padding: 8px;
-            text-align: center;
+
+        /* Spinner Animation */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
         }
-        #submitMerge {
-            float: right; /* Align button to the right */
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .tab-container {
+                padding: 20px;
+            }
+
+            .tab-nav {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .tab-nav li {
+                margin-right: 0;
+                padding: 10px 20px;
+            }
+
+            .modal-content {
+                margin: 20% auto;
+                padding: 30px;
+                width: 95%;
+            }
+
+            table {
+                font-size: 0.85rem;
+            }
+
+            th, td {
+                padding: 10px;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Git Management System</h1>
+            <p>代码合并与分支管理平台</p>
+        </div>
 
-<!-- 选项卡容器 -->
-<div class="tab-container">
-    <ul class="tab-nav">
-        <li class="active" data-tab="merge-tab">代码合并</li>
-        <li data-tab="newbranch-tab">新开分支</li>
-    </ul>
+        <!-- Tab Container -->
+        <div class="tab-container">
+            <ul class="tab-nav">
+                <li class="active" data-tab="merge-tab">代码合并</li>
+                <li data-tab="newbranch-tab">新开分支</li>
+            </ul>
 
-    <!-- 代码合并内容 -->
-    <div id="merge-tab" class="tab-content active">
-        <button id="submitMerge">发起合并</button>
-        <br/><br/>
-        <br/><br/>
-        <table id="auditList">
-            <tr>
-                <th>流水号</th>
-                <th>服务</th>
-                <th>合并分支</th>
-                <th>目标分支</th>
-                <th>备注</th>
-                <th>提交时间</th>
-                <th>审核时间</th>
-                <th>结果</th>
-                <th>执行记录</th>
-                <th>操作</th>
-            </tr>
-        </table>
+            <!-- Code Merge Content -->
+            <div id="merge-tab" class="tab-content active">
+                <button id="submitMerge" class="btn btn-primary">发起合并</button>
+                <br/><br/>
 
-        <div id="mergeModal" class="modal">
-            <div class="modal-content">
-                <form id="mergeForm">
-                    <label for="serviceName">服务:</label>
-                    <select id="serviceName" name="serviceName">
-                        <option value="billservice">billservice</option>
-                        <option value="goodsservice">goodsservice</option>
-                        <option value="StatisticsService">StatisticsService</option>
-                        <option value="imexportservice">imexportservice</option>
-                        <option value="saassystemsetting">saassystemsetting</option>
-                        <option value="customerservice">customerservice</option>
+                <div class="table-container">
+                    <table id="auditList">
+                        <tr>
+                            <th>流水号</th>
+                            <th>服务</th>
+                            <th>合并分支</th>
+                            <th>目标分支</th>
+                            <th>备注</th>
+                            <th>提交时间</th>
+                            <th>审核时间</th>
+                            <th>结果</th>
+                            <th>执行记录</th>
+                            <th>操作</th>
+                        </tr>
+                    </table>
+                </div>
 
-                    </select>
-                    <label for="formBranch">合并分支:</label>
-                    <input type="text" id="formBranch" name="formBranch">
-                    <label for="targetBranch">目标分支:</label>
-                    <select id="targetBranch" name="targetBranch">
-                        <option value="pre" selected>pre</option>
-                        <option value="pre_temp">pre_temp</option>
-                    </select>
-                    <label for="remark">备注:</label>
-                    <textarea id="remark" name="remark"></textarea>
-                    <label for="remark">注意：备注格式：marge:用户名+功能</label>
-                    <button type="submit">确定</button>
-                    <button id="closeModal">关闭</button>
-                </form>
+                <!-- Merge Modal -->
+                <div id="mergeModal" class="modal">
+                    <div class="modal-content">
+                        <h3 style="margin-bottom: 20px; color: var(--primary-color);">发起代码合并</h3>
+                        <form id="mergeForm">
+                            <div>
+                                <label for="serviceName">服务:</label>
+                                <select id="serviceName" name="serviceName">
+                                    <option value="billservice">billservice</option>
+                                    <option value="goodsservice">goodsservice</option>
+                                    <option value="StatisticsService">StatisticsService</option>
+                                    <option value="imexportservice">imexportservice</option>
+                                    <option value="saassystemsetting">saassystemsetting</option>
+                                    <option value="customerservice">customerservice</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="formBranch">合并分支:</label>
+                                <input type="text" id="formBranch" name="formBranch">
+                            </div>
+                            <div>
+                                <label for="targetBranch">目标分支:</label>
+                                <select id="targetBranch" name="targetBranch">
+                                    <option value="pre" selected>pre</option>
+                                    <option value="pre_temp">pre_temp</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="remark">备注:</label>
+                                <textarea id="remark" name="remark"></textarea>
+                                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">注意：备注格式：marge:用户名+功能</p>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" id="closeModal" class="btn btn-secondary">关闭</button>
+                                <button type="submit" class="btn btn-primary">确定</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
             </div>
-        </div>
 
-    </div>
+            <!-- New Branch Content -->
+            <div id="newbranch-tab" class="tab-content">
+                <button id="submitNewBranch" class="btn btn-primary">新开分支</button>
+                <br/><br/>
 
-    <!-- 新增新开分支内容 -->
-    <div id="newbranch-tab" class="tab-content">
-        <button id="submitNewBranch">新开分支</button>
-        <br/><br/>
-        <table id="newbranchList">
-            <tr>
-                <th>流水号</th>
-                <th>服务</th>
-                <th>新开分支</th>
-                <th>来源分支</th>
-                <th>备注</th>
-                <th>提交时间</th>
-                <th>审核时间</th>
-                <th>结果</th>
-                <th>执行记录</th>
-                <th>操作</th>
-            </tr>
-        </table>
+                <div class="table-container">
+                    <table id="newbranchList">
+                        <tr>
+                            <th>流水号</th>
+                            <th>服务</th>
+                            <th>新开分支</th>
+                            <th>来源分支</th>
+                            <th>备注</th>
+                            <th>提交时间</th>
+                            <th>审核时间</th>
+                            <th>结果</th>
+                            <th>执行记录</th>
+                            <th>操作</th>
+                        </tr>
+                    </table>
+                </div>
 
-        <!-- 新开分支弹窗 -->
-        <div id="newbranchModal" class="modal">
-            <div class="modal-content">
-                <form id="newbranchForm">
-                    <label for="newService">服务:</label>
-                    <select id="newService" name="serviceName">
-                        <option value="billservice">billservice</option>
-                        <option value="goodsservice">goodsservice</option>
-                        <option value="StatisticsService">StatisticsService</option>
-                        <option value="imexportservice">imexportservice</option>
-                        <option value="saassystemsetting">saassystemsetting</option>
-                        <option value="customerservice">customerservice</option>
-                    </select>
-                    <label for="newBranchName">新开分支:</label>
-                    <input type="text" id="newBranchName" name="newBranchName">
-                    <label for="sourceBranch">来源分支:</label>
-                    <!--<select id="sourceBranch" name="sourceBranch">
-                        <option value="uat">uat</option>
-                        <option value="master">master</option>
-                    </select>-->
-                    <!-- 关键修改：将select改为input + datalist -->
-                    <input type="text" id="sourceBranch" name="sourceBranch" list="sourceBranchOptions">
-                    <datalist id="sourceBranchOptions">
-                        <option value="uat">uat</option>
-                        <option value="master">master</option>
-                    </datalist>
-                    <label for="newRemark">备注:</label>
-                    <textarea id="newRemark" name="remark"></textarea>
-                    <label>注意：备注格式：用户名+新开分支说明</label>
-                    <button type="submit">确定</button>
-                    <button type="button" class="closeModal">关闭</button>
-                </form>
+                <!-- New Branch Modal -->
+                <div id="newbranchModal" class="modal">
+                    <div class="modal-content">
+                        <h3 style="margin-bottom: 20px; color: var(--primary-color);">新开分支</h3>
+                        <form id="newbranchForm">
+                            <div>
+                                <label for="newService">服务:</label>
+                                <select id="newService" name="serviceName">
+                                    <option value="billservice">billservice</option>
+                                    <option value="goodsservice">goodsservice</option>
+                                    <option value="StatisticsService">StatisticsService</option>
+                                    <option value="imexportservice">imexportservice</option>
+                                    <option value="saassystemsetting">saassystemsetting</option>
+                                    <option value="customerservice">customerservice</option>
+                                    <option value="erpadapter">erpadapter</option>
+                                    <option value="printservice">printservice</option>
+                                    <option value="shopdecorationservice">shopdecorationservice</option>
+                                    <option value="marketingservice">marketingservice</option>
+                                    <option value="marketingservice">logisticsservice</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="newBranchName">新开分支:</label>
+                                <input type="text" id="newBranchName" name="newBranchName">
+                            </div>
+                            <div>
+                                <label for="sourceBranch">来源分支:</label>
+                                <input type="text" id="sourceBranch" name="sourceBranch" list="sourceBranchOptions">
+                                <datalist id="sourceBranchOptions">
+                                    <option value="uat">uat</option>
+                                    <option value="master">master</option>
+                                </datalist>
+                            </div>
+                            <div>
+                                <label for="newRemark">备注:</label>
+                                <textarea id="newRemark" name="remark"></textarea>
+                                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">注意：备注格式：用户名+新开分支说明</p>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="closeModal btn btn-secondary">关闭</button>
+                                <button type="submit" class="btn btn-primary">确定</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
             </div>
+
+            <!-- Audit Modal -->
+            <div id="auditModal" class="modal">
+                <div class="modal-content">
+                    <h3 style="margin-bottom: 20px; color: var(--primary-color);">验证审核</h3>
+                    <div>
+                        <label for="password">验证密码:</label>
+                        <input type="password" id="password" name="password">
+                    </div>
+                    <div class="form-actions" style="margin-top: 20px;">
+                        <button type="button" id="verifyBtn" class="btn btn-primary">验证</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exec Log Modal -->
+            <div id="execLogModal" class="modal">
+                <div class="modal-content">
+                    <h3 style="margin-bottom: 20px; color: var(--primary-color);">执行记录</h3>
+                    <p id="execLogContent"></p>
+                    <div class="form-actions" style="margin-top: 20px;">
+                        <button type="button" id="closeExecLogModal" class="btn btn-secondary">关闭</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Response Modal -->
+            <div id="responseModal" class="modal">
+                <div class="modal-content">
+                    <h3 style="margin-bottom: 20px; color: var(--primary-color);">执行结果</h3>
+                    <div id="responseContent"></div>
+                    <div class="form-actions">
+                        <button type="button" id="closeResponseModal" class="btn btn-secondary">确定</button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <div id="auditModal" class="modal">
-        <div class="modal-content">
-            <label for="password">验证:</label>
-            <input type="password" id="password" name="password">
-            <button id="verifyBtn">验证</button>
-        </div>
-    </div>
-
-    <!-- Modal for displaying execLog content -->
-    <div id="execLogModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <p id="execLogContent"></p>
-        </div>
-    </div>
-
-    <div id="responseModal" class="modal">
-        <div class="modal-content" id="responseContent"></div>
-    </div>
-</div>
     <script>
-
-
         $(document).ready(function() {
             restoreTabState();
             // 初始化加载所有数据
@@ -268,7 +630,6 @@
                     loadData(1);
                 }
             });
-
 
             // 新开分支功能逻辑
             $('#submitNewBranch').on('click', function() {
@@ -318,20 +679,20 @@
                     $(targetTable + ' tr:not(:first)').remove(); // 清空旧数据
 
                     data.forEach(item => {
-                        const branchField = `<td>${item.formBranch}</td><td>${item.targetBranch}</td>` ;
+                        const branchField = `<td>${item.formBranch}</td><td>${item.targetBranch}</td>`;
                         const row = `<tr>
-                    <td hidden>${item.id}</td>
-                    <td>${item.serialNumber}</td>
-                    <td>${item.serviceName}</td>
-                    ${branchField}
-                    <td>${item.remark}</td>
-                    <td>${item.submitTime}</td>
-                    <td>${item.auditTime}</td>
-                    <td>${item.result}</td>
-                    <td><a href="#" class="execLogLink">执行记录</a></td>
-                    <td><a href="#" class="auditLink">审核</a></td>
-                    <td hidden>${item.execLog}</td>
-                </tr>`;
+                            <td hidden>${item.id}</td>
+                            <td>${item.serialNumber}</td>
+                            <td>${item.serviceName}</td>
+                            ${branchField}
+                            <td>${item.remark}</td>
+                            <td>${item.submitTime}</td>
+                            <td>${item.auditTime}</td>
+                            <td>${item.result}</td>
+                            <td><a href="#" class="execLogLink">执行记录</a></td>
+                            <td><a href="#" class="auditLink">审核</a></td>
+                            <td hidden>${item.execLog}</td>
+                        </tr>`;
                         $(targetTable).append(row);
                     });
                 });
@@ -353,9 +714,6 @@
             // 初始化加载数据
             loadData(0); // 加载代码合并数据
             $('.tab-nav li.active').data('tab') === 'newbranch-tab' && loadData(1);
-
-
-
 
             // Load audit list using AJAX
             $.get("http://192.168.11.70:5555/shell/select", function(data) {
@@ -411,24 +769,9 @@
                 } else {
                     alert("请填写所有必填字段");
                 }
-               /*
-                event.preventDefault();
-                $('#targetBranch').prop('disabled', false);
-                if ($('#service').val() && $('#formBranch').val() && $('#remark').val()) {
-                    $.post("http://192.168.11.70:5555/shell/marge", $(this).serialize(), function(response) {
-                        if (response === true) {
-                            alert("提交成功");
-                            location.reload();
-                        }
-                    });
-                } else {
-                    alert("请填写所有必填字段");
-                }
-                $('#targetBranch').prop('disabled', true);*/
             });
 
-            // Verify password for
-            // auditing
+            // Verify password for auditing
             $(document).on('click', '.auditLink', function() {
                 $('#auditModal').show();
             });
@@ -463,6 +806,12 @@
                         ||(password === 'liuzhi' && service == 'imexportservice')
                         ||(password === 'liuzhi' && service == 'saassystemsetting')
                             ||(password === 'lqy' && service == 'customerservice')
+                        ||(password === 'zxg' && service == 'erpadapter')
+                        ||(password === 'hc' && service == 'printservice')
+                        ||(password === 'hpy' && service == 'shopdecorationservice')
+                        ||(password === 'hpy' && service == 'marketingservice')
+                        ||(password === 'hpy' && service == 'logisticsservice')
+
                     ) {
                         // Simulating audit success, you can add your logic here to handle actual password verification
                         $('#responseContent').text('审核通过');
@@ -499,7 +848,7 @@
 
                                 // Create a function to handle streaming data
                                 function addCloseButton() {
-                                    var closeButton = $('<button>确定</button>');
+                                    var closeButton = $('<button class="btn btn-secondary">确定</button>');
                                     $('#responseContent').append(closeButton);
 
                                     closeButton.on('click', function() {
@@ -553,6 +902,18 @@
             });
 
             $('#closeModal').on('click', function() {
+                $('.modal').hide();
+            });
+
+            $('#closeExecLogModal').on('click', function() {
+                $('#execLogModal').hide();
+            });
+
+            $('#closeResponseModal').on('click', function() {
+                $('#responseModal').hide();
+            });
+
+            $('.closeModal').on('click', function() {
                 $('.modal').hide();
             });
         });
