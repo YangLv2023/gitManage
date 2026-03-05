@@ -7,6 +7,7 @@ import com.neil.demo.dto.ShellVo;
 import com.neil.demo.message.MessageSend;
 import com.neil.demo.model.GitAuditRecord;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -30,8 +31,9 @@ public class ExecCodeMargeShellController {
 
     SseEmitter emitter;
 
-
-    String url = "C:\\Program Files\\Git\\bin\\bash.exe";
+    @Value("${fileUrl}")
+    private String url;
+    //String url = "C:\\Program Files\\Git\\bin\\bash.exe";
     //String url = ""D:\\Program Files\\Git\\bin\\bash.exe"";
 
 
