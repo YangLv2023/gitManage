@@ -1,998 +1,1658 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Git Management System</title>
-    <script src="/jquery-3.6.0.min.js"></script>
-    <style>
-        :root {
-            --primary-color: #00d4ff;
-            --secondary-color: #7928ca;
-            --accent-color: #ff2d55;
-            --background-color: #0a0a10;
-            --card-background: rgba(16, 16, 24, 0.8);
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0b0;
-            --border-color: rgba(255, 255, 255, 0.1);
-            --glass-effect: rgba(255, 255, 255, 0.05);
-            --shadow-color: rgba(0, 212, 255, 0.2);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitOps 审核台</title>
+<script src="/jquery-3.6.0.min.js"></script>
+<script src="/env.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    /*
+     * ClickHouse data-dense tokens (locked, no other colors):
+     * bg #000 / surface #141414 / border rgba(65,65,65,.8)
+     * text #fff + #a0a0a0 / single accent #faff69 (focus, primary CTA, small labels)
+     * radius 8px everywhere; no blur, no glow, no gradients.
+     */
+    :root {
+        --bg: #000000;
+        --surface: #141414;
+        --border: rgba(65, 65, 65, 0.8);
+        --border-soft: rgba(65, 65, 65, 0.45);
+        --text: #ffffff;
+        --text-2: #a0a0a0;
+        --accent: #faff69;
+        --accent-ink: #000000;
+        --hover: rgba(255, 255, 255, 0.04);
+        --fill: rgba(255, 255, 255, 0.08);
+        --radius: 8px;
+        --font-title: "Inter", "Basier", Arial, Helvetica, ui-sans-serif, system-ui, sans-serif;
+        --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        --font-mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+    }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-primary);
-            background-image: 
-                radial-gradient(circle at 25% 25%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 75% 75%, rgba(121, 40, 202, 0.1) 0%, transparent 50%),
-                linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.5));
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
+    html { -webkit-text-size-adjust: 100%; }
 
-        /* Updated Background Style */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at center, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
-                        radial-gradient(circle at 30% 70%, rgba(121, 40, 202, 0.05) 0%, transparent 50%),
-                        linear-gradient(45deg, transparent 49%, rgba(0, 212, 255, 0.05) 50%, transparent 51%),
-                        linear-gradient(-45deg, transparent 49%, rgba(121, 40, 202, 0.05) 50%, transparent 51%);
-            background-size: 100% 100%, 100% 100%, 50px 50px, 50px 50px;
-            pointer-events: none;
-            z-index: -1;
-        }
+    body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-body);
+        font-size: 16px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+    }
 
-        /* Shooting Stars Animation */
-        .shooting-stars {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: -1;
-        }
+    h1, h2, h3, h4 { font-family: var(--font-title); line-height: 1.1; }
 
-        .star {
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            animation: shoot linear infinite;
-            opacity: 0;
-        }
+    ::selection { background: var(--accent); color: var(--accent-ink); }
 
-        @keyframes shoot {
-            0% {
-                transform: translateX(0) translateY(0) scale(0);
-                opacity: 1;
-            }
-            100% {
-                transform: translateX(var(--distance-x)) translateY(var(--distance-y)) scale(1);
-                opacity: 0;
-            }
-        }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 999px; border: 2px solid var(--bg); }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+    .mono { font-family: var(--font-mono); }
 
-        /* Header */
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 30px 0;
-            position: relative;
-        }
+    /* ---------- Top bar ---------- */
+    .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        height: 54px;
+        padding: 0 20px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+    }
 
-        .header::before {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 200px;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
-            border-radius: 1px;
-        }
+    .brand { display: flex; align-items: center; gap: 10px; }
 
-        .header h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            margin-bottom: 10px;
-            letter-spacing: 1px;
-        }
+    .brand-mark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        background: var(--accent);
+        color: var(--accent-ink);
+        font-family: var(--font-title);
+        font-size: 15px;
+        font-weight: 800;
+    }
 
-        .header p {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-        }
+    .brand-name { font-family: var(--font-title); font-size: 15px; font-weight: 700; letter-spacing: 0.01em; }
 
-        /* Tab Container */
-        .tab-container {
-            background: var(--card-background);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 30px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 8px 32px var(--shadow-color);
-            margin-bottom: 30px;
-        }
+    .brand-tag {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        color: var(--text-2);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 2px 6px;
+    }
 
-        .tab-nav {
-            display: flex;
-            list-style: none;
-            margin-bottom: 30px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
-        }
+    /* Segmented tab control */
+    .seg {
+        display: inline-flex;
+        gap: 2px;
+        padding: 3px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
 
-        .tab-nav li {
-            margin-right: 20px;
-            position: relative;
-            cursor: pointer;
-            padding: 12px 24px;
-            border-radius: 8px 8px 0 0;
-            transition: all 0.3s ease;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
+    .seg-btn {
+        border: none;
+        border-radius: 6px;
+        padding: 6px 16px;
+        background: transparent;
+        color: var(--text-2);
+        font-family: var(--font-body);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
 
-        .tab-nav li:hover {
-            color: var(--primary-color);
-            background: var(--glass-effect);
-        }
+    .seg-btn:hover { color: var(--text); }
 
-        .tab-nav li.active {
-            color: var(--primary-color);
-            background: var(--glass-effect);
-        }
+    .seg-btn.active {
+        background: rgba(250, 255, 105, 0.12);
+        color: var(--accent);
+    }
 
-        .tab-nav li.active::after {
-            content: '';
-            position: absolute;
-            bottom: -11px;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            border-radius: 1px;
-        }
+    .seg-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.5s ease;
-        }
+    .topbar-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
 
-        .tab-content.active {
-            display: block;
-        }
+    .conn { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-2); }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+    .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-2); }
+    .conn.is-ok .conn-dot { background: var(--accent); }
+    .conn.is-ok { color: var(--text); }
+    .conn.is-bad .conn-dot { background: var(--text); }
+    .conn.is-bad { color: var(--text); }
 
-        /* Button Styles */
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 1rem;
-            position: relative;
-            overflow: hidden;
-        }
+    .topbar-clock {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-2);
+        font-variant-numeric: tabular-nums;
+    }
 
-        .btn-primary {
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            color: white;
-            box-shadow: 0 4px 15px var(--shadow-color);
-        }
+    /* ---------- Page grid ---------- */
+    .page {
+        max-width: 1520px;
+        margin: 0 auto;
+        padding: 16px 20px 24px;
+    }
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px var(--shadow-color);
-        }
+    /* KPI strip */
+    .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 12px;
+    }
 
-        .btn-primary:active {
-            transform: translateY(0);
-        }
+    .kpi {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 16px 12px;
+    }
 
-        .btn-secondary {
-            background: var(--glass-effect);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
+    .kpi-label {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        color: var(--text-2);
+        text-transform: uppercase;
+    }
 
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: var(--primary-color);
-        }
+    .kpi-value {
+        font-family: var(--font-title);
+        font-size: 30px;
+        font-weight: 700;
+        line-height: 1.1;
+        margin: 7px 0 4px;
+        font-variant-numeric: tabular-nums;
+    }
 
-        /* Table Styles */
-        .table-container {
-            margin-top: 30px;
-            overflow-x: auto;
-            border-radius: 12px;
-            background: var(--glass-effect);
-            border: 1px solid var(--border-color);
-        }
+    .kpi-sub { font-size: 12px; color: var(--text-2); }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.95rem;
-        }
+    /* The single focal KPI */
+    .kpi-focus { border-left: 2px solid var(--accent); }
+    .kpi-focus .kpi-value { color: var(--accent); }
 
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
+    /* Main grid: table + side rail */
+    .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 12px;
+        align-items: start;
+    }
 
-        th {
-            background: rgba(0, 212, 255, 0.1);
-            font-weight: 600;
-            color: var(--primary-color);
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
+    .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
 
-        tr:hover {
-            background: rgba(255, 255, 255, 0.03);
-        }
+    .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+    }
 
-        tr:last-child td {
-            border-bottom: none;
-        }
+    .panel-kicker {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        color: var(--text-2);
+        text-transform: uppercase;
+        margin-bottom: 3px;
+    }
 
-        /* Link Styles */
-        a {
-            color: var(--primary-color);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            position: relative;
-        }
+    .panel-title { font-size: 15px; font-weight: 700; }
 
-        a:hover {
-            color: var(--secondary-color);
-        }
+    .panel-body { padding: 12px 16px 16px; }
 
-        a::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 0;
-            height: 1px;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            transition: width 0.3s ease;
-        }
+    .head-count {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 3px 9px;
+        font-variant-numeric: tabular-nums;
+    }
 
-        a:hover::after {
-            width: 100%;
-        }
+    .head-count:empty { display: none; }
 
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            animation: fadeIn 0.3s ease;
-        }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
 
-        .modal-content {
-            background: var(--card-background);
-            backdrop-filter: blur(15px);
-            margin: 10% auto;
-            padding: 40px;
-            border-radius: 16px;
-            width: 90%;
-            max-width: 500px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 8px 32px var(--shadow-color);
-            animation: slideIn 0.3s ease;
-        }
+    /* ---------- Side rail ---------- */
+    .side { display: flex; flex-direction: column; gap: 12px; }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+    .side-note { font-size: 12px; color: var(--text-2); line-height: 1.6; margin-top: 10px; }
 
-        /* Form Styles */
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
+    .side-actions .btn { width: 100%; }
+    .side-actions .btn + .btn { margin-top: 8px; }
 
-        label {
-            font-weight: 500;
-            color: var(--text-primary);
-            margin-bottom: 5px;
-            display: block;
-        }
+    /* Service distribution widget */
+    .svc-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 5px 0;
+    }
 
-        input, select, textarea {
-            width: 100%;
-            padding: 12px 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            background: var(--glass-effect);
-            color: var(--text-primary);
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
+    .svc-row + .svc-row { border-top: 1px solid var(--border-soft); }
 
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
-        }
+    .svc-name {
+        flex: 0 0 108px;
+        font-size: 12px;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 
-        textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
+    .svc-track {
+        flex: 1;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--fill);
+        overflow: hidden;
+    }
 
-        .form-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 10px;
-        }
+    .svc-bar { display: block; height: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.35); }
+    .svc-bar-top { background: var(--accent); }
 
-        /* Response Modal */
-        #responseContent {
-            white-space: pre-wrap;
-            font-family: 'Courier New', Courier, monospace;
-            background: var(--glass-effect);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 20px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
+    .svc-count {
+        flex: none;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-2);
+        min-width: 24px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
 
-        /* Spinner Animation */
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(0, 212, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: var(--primary-color);
-            animation: spin 1s ease-in-out infinite;
-        }
+    /* Result breakdown widget */
+    .res-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 7px 0;
+        font-size: 13px;
+    }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+    .res-row + .res-row { border-top: 1px solid var(--border-soft); }
 
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .container {
-                padding: 10px;
-            }
+    .res-glyph { font-family: var(--font-mono); font-size: 12px; width: 14px; text-align: center; }
+    .res-ok { color: var(--accent); }
+    .res-bad { color: var(--text); }
+    .res-wait { color: var(--text-2); }
+    .res-misc { color: var(--text-2); }
 
-            .header h1 {
-                font-size: 2rem;
-            }
+    .res-count {
+        margin-left: auto;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+    }
 
-            .tab-container {
-                padding: 20px;
-            }
+    .widget-empty { font-size: 12px; color: var(--text-2); padding: 8px 0; }
 
-            .tab-nav {
-                flex-direction: column;
-                gap: 10px;
-            }
+    /* ---------- Buttons ---------- */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 9px 18px;
+        border-radius: var(--radius);
+        border: 1px solid transparent;
+        font-family: var(--font-body);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, filter 0.15s ease, transform 0.1s ease;
+    }
 
-            .tab-nav li {
-                margin-right: 0;
-                padding: 10px 20px;
-            }
+    .btn:active { transform: translateY(1px); }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-            .modal-content {
-                margin: 20% auto;
-                padding: 30px;
-                width: 95%;
-            }
+    .btn-primary { background: var(--accent); color: var(--accent-ink); }
+    .btn-primary:hover { filter: brightness(0.9); }
 
-            table {
-                font-size: 0.85rem;
-            }
+    .btn-secondary {
+        background: var(--surface);
+        border-color: var(--border);
+        color: var(--text);
+    }
 
-            th, td {
-                padding: 10px;
-            }
-        }
-    </style>
+    .btn-secondary:hover { border-color: var(--text-2); }
+
+    .btn-ghost {
+        background: transparent;
+        color: var(--text-2);
+    }
+
+    .btn-ghost:hover { color: var(--text); background: var(--hover); }
+
+    .btn[disabled] { opacity: 0.45; cursor: not-allowed; transform: none !important; filter: none; }
+
+    /* Row actions */
+    .link-btn {
+        border: none;
+        background: none;
+        padding: 2px 0;
+        font-family: var(--font-body);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-2);
+        cursor: pointer;
+        border-bottom: 1px solid transparent;
+        transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .link-btn:hover { color: var(--text); border-bottom-color: var(--text-2); }
+    .link-btn + .link-btn { margin-left: 12px; }
+
+    .auditLink { color: var(--accent); }
+    .auditLink:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ---------- Dense table ---------- */
+    /* No horizontal scroll: fixed layout, columns wrap inside their share of width */
+    .table-wrap { overflow-x: hidden; }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        table-layout: fixed;
+    }
+
+    thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: var(--surface);
+        text-align: left;
+        padding: 9px 12px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        color: var(--text-2);
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+    }
+
+    tbody td {
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--border-soft);
+        color: var(--text);
+        vertical-align: top;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    tbody tr:hover { background: var(--hover); }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .cell-mono { font-family: var(--font-mono); font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+    .cell-remark { color: var(--text-2); }
+    .cell-actions { white-space: nowrap; }
+
+    /* Status chips: monochrome + accent, glyph-coded */
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 2px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        white-space: nowrap;
+    }
+
+    .chip-ok { color: var(--accent); border-color: rgba(250, 255, 105, 0.4); background: rgba(250, 255, 105, 0.07); }
+    .chip-bad { color: var(--text); border-color: rgba(255, 255, 255, 0.4); background: var(--fill); }
+    .chip-wait { color: var(--text-2); }
+    .chip-misc { color: var(--text-2); border-style: dashed; }
+
+    /* Table states */
+    .table-state { padding: 44px 20px; text-align: center; }
+    .table-state-title { font-size: 13px; color: var(--text); margin-bottom: 5px; }
+    .table-state-sub { font-size: 12px; color: var(--text-2); }
+
+    .skeleton-row td { padding: 10px 12px; border-bottom: 1px solid var(--border-soft); }
+
+    .skeleton-bar {
+        height: 11px;
+        border-radius: 4px;
+        background: linear-gradient(90deg, var(--fill) 25%, rgba(255, 255, 255, 0.16) 50%, var(--fill) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.3s linear infinite;
+    }
+
+    @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    /* ---------- Pagination ---------- */
+    .pager {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 10px 16px;
+        border-top: 1px solid var(--border);
+    }
+
+    .pager-info { font-family: var(--font-mono); font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+    .pager-right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    .pager-size {
+        padding: 5px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .pager-size:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .pager-size option { background: var(--surface); color: var(--text); }
+
+    .pg-btn, .pg-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 8px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-2);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        cursor: pointer;
+        transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .pg-btn:hover:not([disabled]), .pg-num:hover { color: var(--text); border-color: var(--text-2); }
+    .pg-btn[disabled] { opacity: 0.35; cursor: not-allowed; }
+
+    .pg-num.current {
+        color: var(--accent);
+        border-color: rgba(250, 255, 105, 0.45);
+        background: rgba(250, 255, 105, 0.08);
+        cursor: default;
+    }
+
+    .pg-gap { color: var(--text-2); font-family: var(--font-mono); font-size: 12px; padding: 0 2px; }
+
+    /* Link to the legacy page */
+    .old-link {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        color: var(--text-2);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 5px 10px;
+        transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .old-link:hover { color: var(--text); border-color: var(--text-2); }
+
+    /* ---------- Footer ---------- */
+    .foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+        padding: 10px 4px 0;
+        border-top: 1px solid var(--border);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-2);
+    }
+
+    /* ---------- Modals ---------- */
+    .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.75);
+        animation: fadeIn 0.18s ease;
+    }
+
+    .modal.open { display: flex; align-items: flex-start; justify-content: center; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-card {
+        width: min(520px, calc(100vw - 32px));
+        margin: 9vh auto 6vh;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 22px 24px 24px;
+        animation: popIn 0.22s cubic-bezier(0.3, 1.2, 0.6, 1);
+    }
+
+    .modal-card.modal-wide { width: min(860px, calc(100vw - 32px)); }
+
+    @keyframes popIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .modal-title { font-size: 16px; font-weight: 700; }
+
+    .modal-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-2);
+        font-size: 13px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .modal-close:hover { color: var(--text); border-color: var(--text-2); }
+
+    /* ---------- Forms ---------- */
+    .field { margin-bottom: 14px; }
+
+    .field label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .field label .req { color: var(--accent); margin-left: 3px; }
+
+    .field input,
+    .field select,
+    .field textarea {
+        width: 100%;
+        padding: 9px 12px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text);
+        font-family: var(--font-body);
+        font-size: 14px;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .field select option { background: var(--surface); color: var(--text); }
+    .field input::placeholder, .field textarea::placeholder { color: var(--text-2); }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        background: rgba(250, 255, 105, 0.03);
+    }
+
+    .field input[disabled] { color: var(--text-2); cursor: not-allowed; }
+    .field textarea { resize: vertical; min-height: 88px; }
+
+    .field-hint { margin-top: 6px; font-size: 12px; color: var(--text-2); }
+    .field-error { margin-top: 6px; font-size: 12px; color: var(--text); display: none; }
+    .field-error::before { content: '✕ '; font-family: var(--font-mono); }
+    .field.has-error input, .field.has-error textarea, .field.has-error select { border-color: rgba(255, 255, 255, 0.55); }
+    .field.has-error .field-error { display: block; }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 18px;
+    }
+
+    /* Log viewer */
+    .log-viewer {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.85);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        max-height: 46vh;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .log-viewer:empty::before { content: '暂无执行记录'; color: var(--text-2); }
+
+    .spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.18);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .running-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--text-2);
+    }
+
+    /* ---------- Toasts ---------- */
+    .toast-stack {
+        position: fixed;
+        top: 66px;
+        right: 20px;
+        z-index: 200;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        pointer-events: none;
+    }
+
+    .toast {
+        pointer-events: auto;
+        min-width: 240px;
+        max-width: 340px;
+        padding: 11px 14px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        font-size: 13px;
+        color: var(--text);
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        animation: toastIn 0.22s ease;
+    }
+
+    .toast.leaving { animation: toastOut 0.2s ease forwards; }
+
+    @keyframes toastIn {
+        from { opacity: 0; transform: translateX(16px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes toastOut {
+        to { opacity: 0; transform: translateX(16px); }
+    }
+
+    .toast-glyph { font-family: var(--font-mono); font-size: 12px; margin-top: 1px; flex: none; }
+    .toast-ok .toast-glyph { color: var(--accent); }
+    .toast-bad .toast-glyph { color: var(--text); }
+    .toast-info .toast-glyph { color: var(--text-2); }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1200px) {
+        .grid { grid-template-columns: 1fr; }
+        .side { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+    }
+
+    @media (max-width: 860px) {
+        .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .side { grid-template-columns: 1fr; }
+        .topbar { flex-wrap: wrap; height: auto; padding: 10px 14px; gap: 10px; }
+        .topbar-right { margin-left: 0; width: 100%; justify-content: space-between; }
+        .page { padding: 12px 12px 20px; }
+        .brand-tag { display: none; }
+    }
+</style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>Git Management System</h1>
-            <p>代码合并与分支管理平台</p>
+    <!-- Top bar -->
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark" aria-hidden="true">G</span>
+            <span class="brand-name">GitOps 审核台</span>
+            <span class="brand-tag">INTERNAL</span>
         </div>
 
-        <!-- Tab Container -->
-        <div class="tab-container">
-            <ul class="tab-nav">
-                <li class="active" data-tab="merge-tab">代码合并</li>
-                <li data-tab="newbranch-tab">新开分支</li>
-            </ul>
+        <div class="seg" role="tablist" aria-label="审核类型">
+            <button type="button" class="seg-btn active" data-tab="merge-tab" role="tab" aria-selected="true">合并审核</button>
+            <button type="button" class="seg-btn" data-tab="newbranch-tab" role="tab" aria-selected="false">新开分支</button>
+        </div>
 
-            <!-- Code Merge Content -->
-            <div id="merge-tab" class="tab-content active">
-                <button id="submitMerge" class="btn btn-primary">发起合并</button>
-                <br/><br/>
+        <div class="topbar-right">
+            <span class="conn" id="connStatus" role="status" aria-live="polite">
+                <span class="conn-dot"></span><span id="connText">连接中…</span>
+            </span>
+            <span class="topbar-clock" id="clock">--</span>
+            <a class="old-link" href="git_audit_old.html" title="打开旧版页面">旧版</a>
+        </div>
+    </header>
 
-                <div class="table-container">
-                    <table id="auditList">
-                        <tr>
-                            <th>流水号</th>
-                            <th>服务</th>
-                            <th>合并分支</th>
-                            <th>目标分支</th>
-                            <th>备注</th>
-                            <th>提交时间</th>
-                            <th>审核时间</th>
-                            <th>结果</th>
-                            <th>执行记录</th>
-                            <th>操作</th>
-                        </tr>
-                    </table>
-                </div>
-
-                <!-- Merge Modal -->
-                <div id="mergeModal" class="modal">
-                    <div class="modal-content">
-                        <h3 style="margin-bottom: 20px; color: var(--primary-color);">发起代码合并</h3>
-                        <form id="mergeForm">
-                            <div>
-                                <label for="serviceName">服务:</label>
-                                <select id="serviceName" name="serviceName">
-                                    <option value="billservice">billservice</option>
-                                    <option value="goodsservice">goodsservice</option>
-                                    <option value="StatisticsService">StatisticsService</option>
-                                    <option value="imexportservice">imexportservice</option>
-                                    <option value="saassystemsetting">saassystemsetting</option>
-                                    <option value="customerservice">customerservice</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="formBranch">合并分支:</label>
-                                <input type="text" id="formBranch" name="formBranch">
-                            </div>
-                            <div>
-                                <label for="targetBranch">目标分支:</label>
-                                <select id="targetBranch" name="targetBranch">
-                                    <option value="pre" selected>pre</option>
-                                    <option value="pre_temp">pre_temp</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="remark">备注:</label>
-                                <textarea id="remark" name="remark"></textarea>
-                                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">注意：备注格式：marge:用户名+功能</p>
-                            </div>
-                            <div class="form-actions">
-                                <button type="button" id="closeModal" class="btn btn-secondary">关闭</button>
-                                <button type="submit" class="btn btn-primary">确定</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
+    <div class="page">
+        <!-- KPI strip, computed from the active list -->
+        <section class="kpi-row" aria-label="申请统计">
+            <div class="kpi">
+                <p class="kpi-label">总申请数</p>
+                <p class="kpi-value" id="kpiTotal">–</p>
+                <p class="kpi-sub" id="kpiTotalSub">全部历史记录</p>
             </div>
-
-            <!-- New Branch Content -->
-            <div id="newbranch-tab" class="tab-content">
-                <button id="submitNewBranch" class="btn btn-primary">新开分支</button>
-                <br/><br/>
-
-                <div class="table-container">
-                    <table id="newbranchList">
-                        <tr>
-                            <th>流水号</th>
-                            <th>服务</th>
-                            <th>新开分支</th>
-                            <th>来源分支</th>
-                            <th>备注</th>
-                            <th>提交时间</th>
-                            <th>审核时间</th>
-                            <th>结果</th>
-                            <th>执行记录</th>
-                            <th>操作</th>
-                        </tr>
-                    </table>
-                </div>
-
-                <!-- New Branch Modal -->
-                <div id="newbranchModal" class="modal">
-                    <div class="modal-content">
-                        <h3 style="margin-bottom: 20px; color: var(--primary-color);">新开分支</h3>
-                        <form id="newbranchForm">
-                            <div>
-                                <label for="newService">服务:</label>
-                                <select id="newService" name="serviceName">
-                                    <option value="billservice">billservice</option>
-                                    <option value="goodsservice">goodsservice</option>
-                                    <option value="StatisticsService">StatisticsService</option>
-                                    <option value="imexportservice">imexportservice</option>
-                                    <option value="saassystemsetting">saassystemsetting</option>
-                                    <option value="customerservice">customerservice</option>
-                                    <option value="erpadapter">erpadapter</option>
-                                    <option value="printservice">printservice</option>
-                                    <option value="shopdecorationservice">shopdecorationservice</option>
-                                    <option value="marketingservice">marketingservice</option>
-                                    <option value="marketingservice">logisticsservice</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="newBranchName">新开分支:</label>
-                                <input type="text" id="newBranchName" name="newBranchName">
-                            </div>
-                            <div>
-                                <label for="sourceBranch">来源分支:</label>
-                                <input type="text" id="sourceBranch" name="sourceBranch" list="sourceBranchOptions">
-                                <datalist id="sourceBranchOptions">
-                                    <option value="uat">uat</option>
-                                    <option value="master">master</option>
-                                </datalist>
-                            </div>
-                            <div>
-                                <label for="newRemark">备注:</label>
-                                <textarea id="newRemark" name="remark"></textarea>
-                                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">注意：备注格式：用户名+新开分支说明</p>
-                            </div>
-                            <div class="form-actions">
-                                <button type="button" class="closeModal btn btn-secondary">关闭</button>
-                                <button type="submit" class="btn btn-primary">确定</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
+            <div class="kpi kpi-focus">
+                <p class="kpi-label">待审核</p>
+                <p class="kpi-value" id="kpiPending">–</p>
+                <p class="kpi-sub" id="kpiPendingSub">–</p>
             </div>
+            <div class="kpi">
+                <p class="kpi-label">已通过</p>
+                <p class="kpi-value" id="kpiOk">–</p>
+                <p class="kpi-sub" id="kpiOkSub">–</p>
+            </div>
+            <div class="kpi">
+                <p class="kpi-label">失败</p>
+                <p class="kpi-value" id="kpiBad">–</p>
+                <p class="kpi-sub" id="kpiBadSub">–</p>
+            </div>
+        </section>
 
-            <!-- Audit Modal -->
-            <div id="auditModal" class="modal">
-                <div class="modal-content">
-                    <h3 style="margin-bottom: 20px; color: var(--primary-color);">验证审核</h3>
+        <div class="grid">
+            <!-- Records table -->
+            <section class="panel">
+                <div class="panel-head">
                     <div>
-                        <label for="password">验证密码:</label>
-                        <input type="password" id="password" name="password">
+                        <p class="panel-kicker">Audit Log</p>
+                        <h1 class="panel-title" id="panelTitle">合并申请记录</h1>
                     </div>
-                    <div class="form-actions" style="margin-top: 20px;">
-                        <button type="button" id="verifyBtn" class="btn btn-primary">验证</button>
+                    <span class="head-count" id="mergeCount"></span>
+                    <span class="head-count" id="newbranchCount" style="display:none"></span>
+                </div>
+
+                <!-- Code merge tab -->
+                <div id="merge-tab" class="tab-content active" role="tabpanel">
+                    <div class="table-wrap">
+                        <table id="auditList">
+                            <colgroup>
+                                <col style="width:9%"><col style="width:9%"><col style="width:10%"><col style="width:9%"><col style="width:17%"><col style="width:11%"><col style="width:11%"><col style="width:8%"><col style="width:8%"><col style="width:8%">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>流水号</th>
+                                    <th>服务</th>
+                                    <th>合并分支</th>
+                                    <th>目标分支</th>
+                                    <th>备注</th>
+                                    <th>提交时间</th>
+                                    <th>审核时间</th>
+                                    <th>结果</th>
+                                    <th>执行记录</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
                     </div>
                 </div>
-            </div>
 
-            <!-- Exec Log Modal -->
-            <div id="execLogModal" class="modal">
-                <div class="modal-content">
-                    <h3 style="margin-bottom: 20px; color: var(--primary-color);">执行记录</h3>
-                    <p id="execLogContent"></p>
-                    <div class="form-actions" style="margin-top: 20px;">
-                        <button type="button" id="closeExecLogModal" class="btn btn-secondary">关闭</button>
+                <!-- New branch tab -->
+                <div id="newbranch-tab" class="tab-content" role="tabpanel">
+                    <div class="table-wrap">
+                        <table id="newbranchList">
+                            <colgroup>
+                                <col style="width:9%"><col style="width:9%"><col style="width:10%"><col style="width:9%"><col style="width:17%"><col style="width:11%"><col style="width:11%"><col style="width:8%"><col style="width:8%"><col style="width:8%">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>流水号</th>
+                                    <th>服务</th>
+                                    <th>新开分支</th>
+                                    <th>来源分支</th>
+                                    <th>备注</th>
+                                    <th>提交时间</th>
+                                    <th>审核时间</th>
+                                    <th>结果</th>
+                                    <th>执行记录</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
                     </div>
                 </div>
-            </div>
 
-            <!-- Response Modal -->
-            <div id="responseModal" class="modal">
-                <div class="modal-content">
-                    <h3 style="margin-bottom: 20px; color: var(--primary-color);">执行结果</h3>
-                    <div id="responseContent"></div>
-                    <div class="form-actions">
-                        <button type="button" id="closeResponseModal" class="btn btn-secondary">确定</button>
+                <!-- Pagination, shared by both tabs -->
+                <div class="pager">
+                    <span class="pager-info" id="pagerInfo">–</span>
+                    <div class="pager-right">
+                        <select class="pager-size" id="pageSize" aria-label="每页条数">
+                            <option value="10">10 条/页</option>
+                            <option value="20" selected>20 条/页</option>
+                            <option value="50">50 条/页</option>
+                        </select>
+                        <button type="button" class="pg-btn" id="pagePrev" aria-label="上一页">‹</button>
+                        <span id="pageNumbers"></span>
+                        <button type="button" class="pg-btn" id="pageNext" aria-label="下一页">›</button>
                     </div>
                 </div>
-            </div>
+            </section>
 
+            <!-- Side rail -->
+            <aside class="side">
+                <div class="panel side-actions">
+                    <div class="panel-head">
+                        <div>
+                            <p class="panel-kicker">Actions</p>
+                            <h2 class="panel-title">操作</h2>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <button id="submitMerge" class="btn btn-primary" type="button">发起合并</button>
+                        <button id="submitNewBranch" class="btn btn-primary" type="button" style="display:none">新开分支</button>
+                        <button id="refreshBtn" class="btn btn-secondary" type="button">刷新列表</button>
+                        <p class="side-note">提交后在列表点击「审核」，输入对应服务的密码，验证通过即执行远程脚本。密码按服务分配，向服务负责人索取。</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="panel-kicker">Top 6 · 本页</p>
+                            <h2 class="panel-title">服务分布</h2>
+                        </div>
+                    </div>
+                    <div class="panel-body" id="serviceChart">
+                        <p class="widget-empty">加载中…</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="panel-kicker">Results · 本页</p>
+                            <h2 class="panel-title">结果构成</h2>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="res-row"><span class="res-glyph res-ok">●</span>已通过<span class="res-count" id="resOk">–</span></div>
+                        <div class="res-row"><span class="res-glyph res-bad">✕</span>失败<span class="res-count" id="resBad">–</span></div>
+                        <div class="res-row"><span class="res-glyph res-wait">○</span>待审核<span class="res-count" id="resWait">–</span></div>
+                        <div class="res-row"><span class="res-glyph res-misc">·</span>其他状态<span class="res-count" id="resMisc">–</span></div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <footer class="foot">
+            <span>数据源 <span id="apiSource">–</span> · 每 60 秒自动刷新</span>
+            <span>GITOPS AUDIT · 仅限内部使用</span>
+        </footer>
+    </div>
+
+    <!-- Merge modal -->
+    <div id="mergeModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="mergeModalTitle">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 class="modal-title" id="mergeModalTitle">发起代码合并</h3>
+                <button class="modal-close" type="button" data-close aria-label="关闭">&#10005;</button>
+            </div>
+            <form id="mergeForm" novalidate>
+                <div class="field">
+                    <label for="serviceName">服务<span class="req">*</span></label>
+                    <select id="serviceName" name="serviceName">
+                        <option value="billservice">billservice</option>
+                        <option value="goodsservice">goodsservice</option>
+                        <option value="StatisticsService">StatisticsService</option>
+                        <option value="imexportservice">imexportservice</option>
+                        <option value="saassystemsetting">saassystemsetting</option>
+                        <option value="customerservice">customerservice</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="formBranch">合并分支<span class="req">*</span></label>
+                    <input type="text" id="formBranch" name="formBranch" placeholder="要合并的分支名">
+                    <p class="field-error">请填写合并分支</p>
+                </div>
+                <div class="field">
+                    <label for="targetBranch">目标分支</label>
+                    <select id="targetBranch" name="targetBranch">
+                        <option value="pre" selected>pre</option>
+                        <option value="pre_temp">pre_temp</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="remark">备注<span class="req">*</span></label>
+                    <textarea id="remark" name="remark" placeholder="marge:用户名+功能"></textarea>
+                    <p class="field-hint">备注格式：marge:用户名+功能</p>
+                    <p class="field-error">请填写备注信息</p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-ghost" data-close>取消</button>
+                    <button type="submit" class="btn btn-primary" id="mergeSubmitBtn">提交申请</button>
+                </div>
+            </form>
         </div>
     </div>
 
+    <!-- New branch modal -->
+    <div id="newbranchModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="newbranchModalTitle">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 class="modal-title" id="newbranchModalTitle">新开分支</h3>
+                <button class="modal-close" type="button" data-close aria-label="关闭">&#10005;</button>
+            </div>
+            <form id="newbranchForm" novalidate>
+                <div class="field">
+                    <label for="newService">服务<span class="req">*</span></label>
+                    <select id="newService" name="serviceName">
+                        <option value="billservice">billservice</option>
+                        <option value="goodsservice">goodsservice</option>
+                        <option value="StatisticsService">StatisticsService</option>
+                        <option value="imexportservice">imexportservice</option>
+                        <option value="saassystemsetting">saassystemsetting</option>
+                        <option value="customerservice">customerservice</option>
+                        <option value="erpadapter">erpadapter</option>
+                        <option value="printservice">printservice</option>
+                        <option value="shopdecorationservice">shopdecorationservice</option>
+                        <option value="marketingservice">marketingservice</option>
+                        <option value="logisticsservice">logisticsservice</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="newBranchName">新开分支<span class="req">*</span></label>
+                    <input type="text" id="newBranchName" name="newBranchName" placeholder="新分支名">
+                    <p class="field-error">请填写新开分支</p>
+                </div>
+                <div class="field">
+                    <label for="sourceBranch">来源分支<span class="req">*</span></label>
+                    <input type="text" id="sourceBranch" name="sourceBranch" list="sourceBranchOptions" placeholder="uat / master">
+                    <datalist id="sourceBranchOptions">
+                        <option value="uat">uat</option>
+                        <option value="master">master</option>
+                    </datalist>
+                    <p class="field-error">请填写来源分支</p>
+                </div>
+                <div class="field">
+                    <label for="newRemark">备注<span class="req">*</span></label>
+                    <textarea id="newRemark" name="remark" placeholder="用户名+新开分支说明"></textarea>
+                    <p class="field-hint">备注格式：用户名+新开分支说明</p>
+                    <p class="field-error">请填写备注信息</p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-ghost" data-close>取消</button>
+                    <button type="submit" class="btn btn-primary" id="newbranchSubmitBtn">提交申请</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Audit modal -->
+    <div id="auditModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="auditModalTitle">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 class="modal-title" id="auditModalTitle">验证审核</h3>
+                <button class="modal-close" type="button" data-close aria-label="关闭">&#10005;</button>
+            </div>
+            <div class="field">
+                <label for="auditTargetInfo">审核对象</label>
+                <input type="text" id="auditTargetInfo" readonly disabled>
+            </div>
+            <div class="field">
+                <label for="password">验证密码<span class="req">*</span></label>
+                <input type="password" id="password" name="password" autocomplete="off" placeholder="请输入审核密码，回车确认">
+                <p class="field-error" id="passwordError">密码错误</p>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-ghost" data-close>取消</button>
+                <button type="button" id="verifyBtn" class="btn btn-primary">验证并执行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exec log modal -->
+    <div id="execLogModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="execLogModalTitle">
+        <div class="modal-card modal-wide">
+            <div class="modal-head">
+                <h3 class="modal-title" id="execLogModalTitle">执行记录</h3>
+                <button class="modal-close" type="button" data-close aria-label="关闭">&#10005;</button>
+            </div>
+            <div id="execLogContent" class="log-viewer"></div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" data-close>关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Response modal -->
+    <div id="responseModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="responseModalTitle">
+        <div class="modal-card modal-wide">
+            <div class="modal-head">
+                <h3 class="modal-title" id="responseModalTitle">执行结果</h3>
+                <button class="modal-close" type="button" data-close aria-label="关闭">&#10005;</button>
+            </div>
+            <div id="responseContent" class="log-viewer"></div>
+            <div class="running-hint" id="runningHint" style="display:none;">
+                <span class="spinner"></span><span>正在执行，请稍候…</span>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" data-close>关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
     <script>
-        $(document).ready(function() {
-            restoreTabState();
-            // 初始化加载所有数据
-            loadData(0); // 代码合并
-            loadData(1); // 新开分支
-
-            // 修复的选项卡切换逻辑
-            $('.tab-nav').on('click', 'li', function() {
-                $('.tab-nav li, .tab-content').removeClass('active');
-                $(this).addClass('active');
-                const tabId = $(this).data('tab');
-                saveTabState(tabId); // 新增：保存状态
-                $('#' + tabId).addClass('active');
-
-                // 切换时重新加载数据
-                if(tabId === 'merge-tab') {
-                    loadData(0);
-                } else {
-                    loadData(1);
+        $(document).ready(function () {
+            // Runtime API base: local startup (localhost/127.0.0.1/file://) always talks to
+            // localhost:5555; deployed environments read env.js (window.ENV.API_BASE).
+            const API_BASE = (function () {
+                const host = window.location.hostname;
+                if (host === 'localhost' || host === '127.0.0.1' || host === '') {
+                    return 'http://localhost:5555';
                 }
+                const fromEnv = window.ENV && window.ENV.API_BASE;
+                return fromEnv ? fromEnv.replace(/\/+$/, '') : window.location.origin;
+            })();
+
+            // Password map per service, kept verbatim from the original page (upstream design).
+            const SERVICE_PASSWORDS = {
+                'billservice': ['123456'],
+                'StatisticsService': ['ldh'],
+                'goodsservice': ['zyh'],
+                'imexportservice': ['liuzhi'],
+                'saassystemsetting': ['liuzhi'],
+                'customerservice': ['lqy'],
+                'erpadapter': ['zxg'],
+                'printservice': ['hc'],
+                'shopdecorationservice': ['hpy'],
+                'marketingservice': ['hpy'],
+                'logisticsservice': ['hpy']
+            };
+
+            // Current audit target, set when an audit link is clicked.
+            let auditContext = null;
+
+            // ============ Helpers ============
+            function escapeHtml(value) {
+                if (value === null || value === undefined) return '';
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function toast(message, kind) {
+                const cls = kind === 'bad' ? 'toast-bad' : kind === 'ok' ? 'toast-ok' : 'toast-info';
+                const glyph = kind === 'bad' ? '✕' : kind === 'ok' ? '✓' : 'i';
+                const $toast = $('<div class="toast ' + cls + '"><span class="toast-glyph">' + glyph + '</span><div></div></div>');
+                $toast.find('div').text(message);
+                $('#toastStack').append($toast);
+                setTimeout(function () {
+                    $toast.addClass('leaving');
+                    setTimeout(function () { $toast.remove(); }, 220);
+                }, 3200);
+            }
+
+            // Monochrome status chips, glyph-coded (single accent reserved for passed).
+            function chipFor(result) {
+                const text = (result || '').toString();
+                if (/成功|通过|完成/.test(text)) return '<span class="chip chip-ok">● ' + escapeHtml(text) + '</span>';
+                if (/失败|异常|错误/.test(text)) return '<span class="chip chip-bad">✕ ' + escapeHtml(text) + '</span>';
+                if (text.trim() === '' || /待|未审核/.test(text)) return '<span class="chip chip-wait">○ ' + (text.trim() === '' ? '待审核' : escapeHtml(text)) + '</span>';
+                return '<span class="chip chip-misc">· ' + escapeHtml(text) + '</span>';
+            }
+
+            function classifyResult(result) {
+                const text = (result || '').toString();
+                if (/成功|通过|完成/.test(text)) return 'ok';
+                if (/失败|异常|错误/.test(text)) return 'bad';
+                if (text.trim() === '' || /待|未审核/.test(text)) return 'wait';
+                return 'misc';
+            }
+
+            function activeGitType() {
+                return $('.seg-btn.active').data('tab') === 'merge-tab' ? 0 : 1;
+            }
+
+            // ============ Modal manager ============
+            function openModal(id) {
+                $(id).addClass('open');
+                const $first = $(id).find('input:not([disabled]):not([readonly]), select, textarea').first();
+                setTimeout(function () { $first.trigger('focus'); }, 60);
+            }
+
+            function closeModal($modal) {
+                $modal.removeClass('open');
+            }
+
+            $(document).on('click', '.modal [data-close]', function () {
+                closeModal($(this).closest('.modal'));
             });
 
-            // 新开分支功能逻辑
-            $('#submitNewBranch').on('click', function() {
-                $('#newbranchModal').show();
+            $(document).on('click', '.modal', function (e) {
+                if (e.target === this) closeModal($(this));
             });
 
-            $('#newbranchForm').on('submit', function(e) {
-                e.preventDefault();
-                const formData = {
-                    serviceName: $('#newService').val(),
-                    formBranch: $('#newBranchName').val(),
-                    targetBranch: $('#sourceBranch').val(),
-                    remark: $('#newRemark').val(),
-                    gitType: 1 // 新增类型字段
-                };
+            $(document).on('keydown', function (e) {
+                if (e.key === 'Escape') $('.modal.open').each(function () { closeModal($(this)); });
+            });
 
-                if (!formData.remark) {
-                    alert("请填写备注信息");
+            function clearForm($form) {
+                $form.find('.field').removeClass('has-error');
+                $form.find('input[type="text"], input[type="password"], textarea').val('');
+            }
+
+            // ============ Connection status ============
+            function probeConnection(ok) {
+                $('#connStatus').removeClass('is-ok is-bad').addClass(ok ? 'is-ok' : 'is-bad');
+                $('#connText').text(ok ? '服务正常' : '连接失败');
+            }
+
+            // ============ Dashboard widgets (computed from real list data) ============
+            function updateDashboard(data, totalAll) {
+                const total = data.length;
+                const tally = { ok: 0, bad: 0, wait: 0, misc: 0 };
+                const svc = {};
+                data.forEach(function (item) {
+                    tally[classifyResult(item.result)]++;
+                    const name = (item.serviceName || '未知').toString();
+                    svc[name] = (svc[name] || 0) + 1;
+                });
+
+                $('#kpiTotal').text(totalAll);
+                $('#kpiPending').text(tally.wait);
+                $('#kpiPendingSub').text(tally.wait > 0 ? '本页待处理' : '本页无积压');
+                $('#kpiOk').text(tally.ok);
+                $('#kpiOkSub').text('本页占比 ' + (total ? Math.round(tally.ok / total * 100) : 0) + '%');
+                $('#kpiBad').text(tally.bad);
+                $('#kpiBadSub').text('本页占比 ' + (total ? Math.round(tally.bad / total * 100) : 0) + '%');
+
+                $('#resOk').text(tally.ok);
+                $('#resBad').text(tally.bad);
+                $('#resWait').text(tally.wait);
+                $('#resMisc').text(tally.misc);
+
+                const rows = Object.keys(svc)
+                    .map(function (name) { return { name: name, count: svc[name] }; })
+                    .sort(function (a, b) { return b.count - a.count; })
+                    .slice(0, 6);
+                const max = rows.length ? rows[0].count : 0;
+                const $chart = $('#serviceChart').empty();
+                if (!rows.length) {
+                    $chart.html('<p class="widget-empty">暂无数据</p>');
                     return;
                 }
-                if (formData.serviceName && formData.formBranch && formData.remark) {
-                    $.ajax({
-                        url: 'http://192.168.11.70:5555/shell/checkOutNew',
-                        type: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify(formData),
-                        success: function(response) {
-                            if (response === true) {
-                                alert("提交成功");
-                                loadData(1); // 改为仅刷新数据
-                                $('#newbranchModal').hide(); // 关闭弹窗
-                                // 确保标签页状态保持
-                                saveTabState('newbranch-tab');
-                            }
-                        }
-                    });
-                } else {
-                    alert("请填写所有必填字段");
-                }
-            });
-
-            // 修改列表查询接口
-            // 数据加载函数
-            function loadData(gitType) {
-                $.get("http://192.168.11.70:5555/shell/select", { gitType: gitType }, function(data) {
-                    const targetTable = gitType === 0 ? '#auditList' : '#newbranchList';
-                    $(targetTable + ' tr:not(:first)').remove(); // 清空旧数据
-
-                    data.forEach(item => {
-                        const branchField = `<td>${item.formBranch}</td><td>${item.targetBranch}</td>`;
-                        const row = `<tr>
-                            <td hidden>${item.id}</td>
-                            <td>${item.serialNumber}</td>
-                            <td>${item.serviceName}</td>
-                            ${branchField}
-                            <td>${item.remark}</td>
-                            <td>${item.submitTime}</td>
-                            <td>${item.auditTime}</td>
-                            <td>${item.result}</td>
-                            <td><a href="#" class="execLogLink">执行记录</a></td>
-                            <td><a href="#" class="auditLink">审核</a></td>
-                            <td hidden>${item.execLog}</td>
-                        </tr>`;
-                        $(targetTable).append(row);
-                    });
+                rows.forEach(function (row, index) {
+                    const width = max ? Math.max(6, Math.round(row.count / max * 100)) : 0;
+                    $chart.append(
+                        '<div class="svc-row">' +
+                        '<span class="svc-name" title="' + escapeHtml(row.name) + '">' + escapeHtml(row.name) + '</span>' +
+                        '<span class="svc-track"><span class="svc-bar' + (index === 0 ? ' svc-bar-top' : '') +
+                        '" style="width:' + width + '%"></span></span>' +
+                        '<span class="svc-count">' + row.count + '</span>' +
+                        '</div>'
+                    );
                 });
             }
 
-            // 新增：保存当前tab状态
-            function saveTabState(tabId) {
-                localStorage.setItem('activeTab', tabId);
+            // ============ Data loading ============
+            function skeletonRows(colSpan) {
+                let rows = '';
+                for (let i = 0; i < 6; i++) {
+                    rows += '<tr class="skeleton-row">';
+                    for (let j = 0; j < colSpan; j++) rows += '<td><div class="skeleton-bar"></div></td>';
+                    rows += '</tr>';
+                }
+                return rows;
             }
 
-            // 新增：恢复tab状态
+            function stateRow(colSpan, title, sub) {
+                return '<tr><td colspan="' + colSpan + '"><div class="table-state">' +
+                    '<div class="table-state-title">' + escapeHtml(title) + '</div>' +
+                    '<div class="table-state-sub">' + escapeHtml(sub) + '</div></div></td></tr>';
+            }
+
+            // ============ Pagination ============
+            const pager = { page: 1, size: 20, total: 0 };
+
+            function totalPages() { return Math.max(1, Math.ceil(pager.total / pager.size)); }
+
+            function gotoPage(p) {
+                const target = Math.min(Math.max(1, p), totalPages());
+                if (target === pager.page) return;
+                pager.page = target;
+                loadData(activeGitType(), true);
+            }
+
+            // Windowed page numbers: first, last, current +/-1, gaps collapsed.
+            function renderPager() {
+                const tp = totalPages();
+                const start = pager.total === 0 ? 0 : (pager.page - 1) * pager.size + 1;
+                const end = Math.min(pager.total, pager.page * pager.size);
+                $('#pagerInfo').text(pager.total === 0
+                    ? '共 0 条'
+                    : start + '-' + end + ' / 共 ' + pager.total + ' 条' + (useLegacySelect ? '（旧接口上限）' : ''));
+                $('#pagePrev').prop('disabled', pager.page <= 1);
+                $('#pageNext').prop('disabled', pager.page >= tp);
+
+                const $box = $('#pageNumbers').empty();
+                let prev = 0;
+                for (let p = 1; p <= tp; p++) {
+                    if (p !== 1 && p !== tp && Math.abs(p - pager.page) > 1) continue;
+                    if (p - prev > 1) $box.append('<span class="pg-gap">…</span>');
+                    const $b = $('<button type="button" class="pg-num"></button>').text(p);
+                    if (p === pager.page) $b.addClass('current');
+                    else $b.on('click', function () { gotoPage(p); });
+                    $box.append($b);
+                    prev = p;
+                }
+            }
+
+            // Flips to true when the backend has no selectPage yet (not redeployed):
+            // falls back to the legacy select (recent 100) and paginates client-side.
+            let useLegacySelect = false;
+
+            // silent=true: background refresh without flashing the skeleton.
+            function loadData(gitType, silent) {
+                const isMerge = gitType === 0;
+                const $tbody = $(isMerge ? '#auditList' : '#newbranchList').find('tbody');
+                const $count = $(isMerge ? '#mergeCount' : '#newbranchCount');
+                const colCount = 10;
+                if (!silent) $tbody.html(skeletonRows(colCount));
+
+                const request = useLegacySelect
+                    ? $.get(API_BASE + '/shell/select', { gitType: gitType })
+                    : $.get(API_BASE + '/shell/selectPage', { gitType: gitType, page: pager.page, size: pager.size });
+
+                request
+                    .done(function (resp) {
+                        if (useLegacySelect && resp && resp.length !== undefined) {
+                            const all = resp;
+                            const startIdx = (pager.page - 1) * pager.size;
+                            resp = { total: all.length, records: all.slice(startIdx, startIdx + pager.size) };
+                        }
+                        // Legacy fallback serves at most 100 rows; say so until the backend is redeployed.
+                        $('#kpiTotalSub').text(useLegacySelect
+                            ? '旧接口仅返回最近 100 条，重新部署后端后显示全部'
+                            : '全部历史记录');
+                        if (isMerge) probeConnection(true);
+                        pager.total = (resp && resp.total) || 0;
+                        // Current page no longer exists: clamp to the last page and refetch.
+                        if (pager.page > totalPages()) {
+                            pager.page = totalPages();
+                            loadData(gitType, true);
+                            return;
+                        }
+                        const data = (resp && resp.records) || [];
+                        $tbody.empty();
+                        if (data.length === 0) {
+                            $tbody.html(stateRow(colCount, '暂无记录', '在右侧「操作」面板提交一条新申请'));
+                            $count.text('');
+                            updateDashboard([], pager.total);
+                            renderPager();
+                            return;
+                        }
+                        data.forEach(function (item) {
+                            const branchCells =
+                                '<td class="cell-mono">' + escapeHtml(item.formBranch) + '</td>' +
+                                '<td class="cell-mono">' + escapeHtml(item.targetBranch) + '</td>';
+                            const $row = $('<tr>' +
+                                '<td class="cell-mono">' + escapeHtml(item.serialNumber) + '</td>' +
+                                '<td>' + escapeHtml(item.serviceName) + '</td>' +
+                                branchCells +
+                                '<td class="cell-remark" title="' + escapeHtml(item.remark) + '">' + escapeHtml(item.remark) + '</td>' +
+                                '<td class="cell-mono">' + escapeHtml(item.submitTime) + '</td>' +
+                                '<td class="cell-mono">' + escapeHtml(item.auditTime) + '</td>' +
+                                '<td>' + chipFor(item.result) + '</td>' +
+                                '<td class="cell-actions"><button type="button" class="link-btn execLogLink">执行记录</button></td>' +
+                                '<td class="cell-actions"><button type="button" class="link-btn auditLink">审核</button></td>' +
+                                '</tr>');
+                            // Row payload kept out of the DOM tree (replaces the old hidden-td pattern).
+                            $row.data('record', {
+                                id: item.id,
+                                serialNumber: item.serialNumber,
+                                serviceName: item.serviceName,
+                                execLog: item.execLog
+                            });
+                            $tbody.append($row);
+                        });
+                        $count.text('本页 ' + data.length + ' 条');
+                        updateDashboard(data, pager.total);
+                        renderPager();
+                    })
+                    .fail(function () {
+                        if (!useLegacySelect) {
+                            useLegacySelect = true;
+                            loadData(gitType, silent);
+                            return;
+                        }
+                        if (isMerge) probeConnection(false);
+                        if (!silent) {
+                            $tbody.html(stateRow(colCount, '数据加载失败', '检查服务连接后，在右侧点击「刷新列表」重试'));
+                            $count.text('');
+                        }
+                        updateDashboard([], 0);
+                        renderPager();
+                        toast('列表加载失败，请检查服务是否可用', 'bad');
+                    });
+            }
+
+            function refreshActive() { loadData(activeGitType()); }
+
+            // ============ Tabs (segmented control) ============
+            function saveTabState(tabId) { localStorage.setItem('activeTab', tabId); }
+
+            function activateTab($btn) {
+                $('.seg-btn, .tab-content').removeClass('active');
+                $('.seg-btn').attr('aria-selected', 'false');
+                $btn.addClass('active').attr('aria-selected', 'true');
+                const tabId = $btn.data('tab');
+                const isMerge = tabId === 'merge-tab';
+                saveTabState(tabId);
+                $('#' + tabId).addClass('active');
+                $('#panelTitle').text(isMerge ? '合并申请记录' : '分支申请记录');
+                $('#submitMerge').toggle(isMerge);
+                $('#submitNewBranch').toggle(!isMerge);
+                $('#mergeCount').toggle(isMerge);
+                $('#newbranchCount').toggle(!isMerge);
+                pager.page = 1;
+                loadData(isMerge ? 0 : 1);
+            }
+
+            // seg-btn is a <button>: Enter/Space fire click natively, no keydown shim needed.
+            $('.seg').on('click', '.seg-btn', function () { activateTab($(this)); });
+
             function restoreTabState() {
                 const savedTab = localStorage.getItem('activeTab');
-                if (savedTab) {
-                    $(`.tab-nav li[data-tab="${savedTab}"]`).click();
-                }
+                const $btn = $('.seg-btn[data-tab="' + savedTab + '"]');
+                if (savedTab && $btn.length) activateTab($btn);
             }
 
-            // 初始化加载数据
-            loadData(0); // 加载代码合并数据
-            $('.tab-nav li.active').data('tab') === 'newbranch-tab' && loadData(1);
+            $('#refreshBtn').on('click', refreshActive);
 
-            // Load audit list using AJAX
-            $.get("http://192.168.11.70:5555/shell/select", function(data) {
-                data.forEach(function(item) {
-                    // Create a row for each item in the data
-                    $('#auditList').append('<tr><td hidden>' + item.id + '</td><td>' + item.serialNumber + '</td><td>' + item.serviceName + '</td><td>' + item.formBranch + '</td><td>' + item.targetBranch + '</td><td>' + item.remark + '</td><td>' + item.submitTime + '</td><td>' + item.auditTime + '</td><td>' + item.result + '</td><td><a href="#" class="execLogLink">执行记录</a></td><td><a href="#" class="auditLink">审核</a></td><td hidden>'+item.execLog+'</td></tr>');
-                });
-
-                // Show execLog content in a modal when clicking on "执行记录" link
-                $(document).on('click', '.execLogLink', function() {
-                    // 获取当前行的所有td元素
-                    const $tds = $(this).closest('tr').find('td');
-                    // 动态查找隐藏的execLog列（最后一个td）
-                    const execLogContent = $tds.last().html();
-                    $('#execLogContent').html(execLogContent);
-                    $('#execLogModal').show();
-                });
+            $('#pagePrev').on('click', function () { gotoPage(pager.page - 1); });
+            $('#pageNext').on('click', function () { gotoPage(pager.page + 1); });
+            $('#pageSize').on('change', function () {
+                pager.size = parseInt($(this).val(), 10) || 20;
+                pager.page = 1;
+                refreshActive();
             });
 
-            // Submit merge form
-            $('#submitMerge').on('click', function() {
-                $('#mergeModal').show();
+            // ============ Form validation helpers ============
+            function requireField(id) {
+                const $input = $(id);
+                const ok = $input.val() && $input.val().trim() !== '';
+                $input.closest('.field').toggleClass('has-error', !ok);
+                return ok;
+            }
+
+            function submitWithLock($btn, work) {
+                if ($btn.prop('disabled')) return;
+                $btn.prop('disabled', true);
+                work().always(function () { $btn.prop('disabled', false); });
+            }
+
+            // ============ Merge submit ============
+            $('#submitMerge').on('click', function () {
+                clearForm($('#mergeForm'));
+                openModal('#mergeModal');
             });
 
-            $('#mergeForm').on('submit', function(event) {
-                event.preventDefault();
+            $('#mergeForm').on('submit', function (e) {
+                e.preventDefault();
+                const valid = requireField('#formBranch') & requireField('#remark');
+                if (!valid) return;
 
-                let formData = {
+                const formData = {
                     serviceName: $('#serviceName').val(),
-                    formBranch: $('#formBranch').val(),
+                    formBranch: $('#formBranch').val().trim(),
                     targetBranch: $('#targetBranch').val(),
-                    remark: $('#remark').val(),
+                    remark: $('#remark').val().trim(),
                     gitType: 0
                 };
 
-                if (formData.serviceName && formData.formBranch && formData.remark) {
-                    $.ajax({
-                        url: 'http://192.168.11.70:5555/shell/submit',
+                submitWithLock($('#mergeSubmitBtn'), function () {
+                    return $.ajax({
+                        url: API_BASE + '/shell/submit',
                         type: 'POST',
                         contentType: 'application/json',
-                        data: JSON.stringify(formData),
-                        success: function(response) {
-                            if (response === true) {
-                                alert("提交成功");
-                                loadData(0); // 改为仅刷新数据
-                                $('#mergeModal').hide(); // 关闭弹窗
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error(error);
+                        data: JSON.stringify(formData)
+                    }).done(function (response) {
+                        if (response === true) {
+                            toast('合并申请提交成功', 'ok');
+                            pager.page = 1;
+                            loadData(0);
+                            closeModal($('#mergeModal'));
+                            saveTabState('merge-tab');
+                        } else {
+                            toast('提交未被接受，请检查填写内容', 'bad');
                         }
+                    }).fail(function () {
+                        toast('提交失败，请稍后重试', 'bad');
                     });
-                } else {
-                    alert("请填写所有必填字段");
-                }
-            });
-
-            // Verify password for auditing
-            $(document).on('click', '.auditLink', function() {
-                $('#auditModal').show();
-            });
-
-            // Auditing
-            $(document).on('click', '.auditLink', function() {
-
-                // 修改审核逻辑中的API判断
-                const gitType = $('.tab-nav li.active').data('tab') === 'merge-tab' ? 0 : 1;
-                const apiUrl = gitType === 0 ?
-                    'http://192.168.11.70:5555/shell/marge' :
-                    'http://192.168.11.70:5555/shell/checkOut';
-
-                // 确保获取正确的流水号（隐藏的id字段）
-                var serialNumber = $(this).closest('tr').find('td:first').text();
-                var service = $(this).closest('tr').find('td:nth-child(3)').text(); // 所有表格中服务名称固定在第
-
-                $('#password').on('keydown', function(event) {
-                    // 如果按下的是回车键(键码为13)
-                    if (event.keyCode === 13) {
-                        // 触发验证按钮的点击事件
-                        $('#verifyBtn').click();
-                    }
                 });
+            });
 
-                $('#verifyBtn').off('click').on('click', function() {
-                    var password = $('#password').val().trim();
+            // ============ New branch submit ============
+            $('#submitNewBranch').on('click', function () {
+                clearForm($('#newbranchForm'));
+                openModal('#newbranchModal');
+            });
 
-                    if ((password === '123456' && service == 'billservice')
-                            ||(password === 'ldh' && service == 'StatisticsService')
-                            ||(password === 'zyh' && service == 'goodsservice')
-                        ||(password === 'liuzhi' && service == 'imexportservice')
-                        ||(password === 'liuzhi' && service == 'saassystemsetting')
-                            ||(password === 'lqy' && service == 'customerservice')
-                        ||(password === 'zxg' && service == 'erpadapter')
-                        ||(password === 'hc' && service == 'printservice')
-                        ||(password === 'hpy' && service == 'shopdecorationservice')
-                        ||(password === 'hpy' && service == 'marketingservice')
-                        ||(password === 'hpy' && service == 'logisticsservice')
+            $('#newbranchForm').on('submit', function (e) {
+                e.preventDefault();
+                const valid = requireField('#newBranchName') & requireField('#sourceBranch') & requireField('#newRemark');
+                if (!valid) return;
 
-                    ) {
-                        // Simulating audit success, you can add your logic here to handle actual password verification
-                        $('#responseContent').text('审核通过');
-                        $('#responseModal').show();
+                const formData = {
+                    serviceName: $('#newService').val(),
+                    formBranch: $('#newBranchName').val().trim(),
+                    targetBranch: $('#sourceBranch').val().trim(),
+                    remark: $('#newRemark').val().trim(),
+                    gitType: 1
+                };
 
-                        // Prepare data in JSON format for POST request
-                        var requestData = {
-                            id: serialNumber,
-                            password: password
-                        };
-
-                        var xhr;
-                        var spinningSymbols = ['\\', '|','/','—']; // Define spinning symbols
-                        var symbolIndex = 0; // Initialize spinning symbol index
-                        var intervalId;
-                        // Function to update response area with spinning symbol
-                        function updateResponseArea(responseText) {
-                            var currentSymbol = spinningSymbols[symbolIndex % spinningSymbols.length];
-                            $('#responseContent').html(responseText + '<br/>' +currentSymbol); // Update the response area with response text and spinning symbol
-                            symbolIndex++; // Move to the next spinning symbol
+                submitWithLock($('#newbranchSubmitBtn'), function () {
+                    return $.ajax({
+                        url: API_BASE + '/shell/checkOutNew',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(formData)
+                    }).done(function (response) {
+                        if (response === true) {
+                            toast('新开分支申请提交成功', 'ok');
+                            pager.page = 1;
+                            loadData(1);
+                            closeModal($('#newbranchModal'));
+                            saveTabState('newbranch-tab');
+                        } else {
+                            toast('提交未被接受，请检查填写内容', 'bad');
                         }
-
-                        // Call the API and print the response in responseContent
-                        $.ajax({
-                            url: apiUrl,
-                            type: 'POST',
-                            contentType: 'application/json',
-                            data: JSON.stringify(requestData),
-                            success: function(data) {
-                                var responseArea = $('#responseContent');
-                                responseArea.empty();
-                                var newLine = '<br>';
-                                var responseText = '';
-
-                                // Create a function to handle streaming data
-                                function addCloseButton() {
-                                    var closeButton = $('<button class="btn btn-secondary">确定</button>');
-                                    $('#responseContent').append(closeButton);
-
-                                    closeButton.on('click', function() {
-                                        location.reload(); // Reload the page
-                                    });
-                                }
-
-                                // Create a new XMLHttpRequest for streaming
-                                xhr = new XMLHttpRequest();
-                                xhr.open('GET', apiUrl, true);
-                                xhr.setRequestHeader('Accept', 'text/event-stream');
-
-                                xhr.onreadystatechange = function() {
-                                    if (xhr.readyState === 3 && xhr.status === 200) {
-                                        var responseText = xhr.responseText;
-                                        //updateResponseArea(responseText);
-                                    }
-                                    if (xhr.readyState === 4 && xhr.status === 200) {
-                                        // Request completed, do your final operations here
-                                        clearInterval(intervalId); // Stop the interval timer
-                                        var responseText = xhr.responseText+'<br/>';
-                                        responseArea.html(responseText);
-                                        addCloseButton();
-                                    }
-                                };
-
-                                xhr.send();
-                            },
-                            error: function() {
-                                $('#responseContent').text('Error: 请求失败');
-                            }
-                        });
-
-                        // Update spinning symbol every second
-                        intervalId = setInterval(function() {
-                            updateResponseArea(xhr.responseText); // Update response area with spinning symbol
-                        }, 200);
-                    } else {
-                        $('#responseContent').text('验证失败');
-                        $('#responseModal').show();
-                    }
-
+                    }).fail(function () {
+                        toast('提交失败，请稍后重试', 'bad');
+                    });
                 });
             });
 
-            // Close modals
-            $('.modal').on('click', function(event) {
-                if (event.target === this) {
-                    $(this).hide();
+            // ============ Exec log viewer ============
+            $(document).on('click', '.execLogLink', function () {
+                const record = $(this).closest('tr').data('record') || {};
+                const log = record.execLog;
+                const $viewer = $('#execLogContent');
+                $viewer.empty();
+                if (log && String(log).trim() !== '') {
+                    // Backend log may contain HTML; render as-is, same as the original page.
+                    $viewer.html(log);
                 }
+                openModal('#execLogModal');
             });
 
-            $('#closeModal').on('click', function() {
-                $('.modal').hide();
+            // ============ Audit flow ============
+            $(document).on('click', '.auditLink', function () {
+                const record = $(this).closest('tr').data('record') || {};
+                auditContext = {
+                    id: record.id,
+                    serialNumber: record.serialNumber,
+                    serviceName: record.serviceName,
+                    gitType: activeGitType()
+                };
+                $('#auditTargetInfo').val(auditContext.serialNumber + ' / ' + auditContext.serviceName);
+                $('#password').val('').closest('.field').removeClass('has-error');
+                openModal('#auditModal');
             });
 
-            $('#closeExecLogModal').on('click', function() {
-                $('#execLogModal').hide();
+            // Bind once: Enter inside the password field confirms.
+            $('#password').on('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); $('#verifyBtn').trigger('click'); }
             });
 
-            $('#closeResponseModal').on('click', function() {
-                $('#responseModal').hide();
+            $('#verifyBtn').on('click', function () {
+                if (!auditContext) return;
+                const password = $('#password').val().trim();
+                const service = auditContext.serviceName;
+                const accepted = (SERVICE_PASSWORDS[service] || []).indexOf(password) !== -1;
+
+                if (!accepted) {
+                    $('#password').closest('.field').addClass('has-error');
+                    toast('验证失败：密码错误', 'bad');
+                    return;
+                }
+
+                $('#password').closest('.field').removeClass('has-error');
+                closeModal($('#auditModal'));
+                $('#responseContent').text('审核通过，正在执行…');
+                $('#runningHint').show();
+                openModal('#responseModal');
+
+                const apiUrl = auditContext.gitType === 0
+                    ? API_BASE + '/shell/marge'
+                    : API_BASE + '/shell/checkOut';
+
+                // Upstream protocol, kept as-is: async POST starts the shell job and
+                // creates the SSE emitter; a following GET on the same URL streams output.
+                $.ajax({
+                    url: apiUrl,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ id: auditContext.id, password: password })
+                }).done(function () {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('GET', apiUrl, true);
+                    xhr.setRequestHeader('Accept', 'text/event-stream');
+
+                    let finished = false;
+                    const symbols = ['\\', '|', '/', '-'];
+                    let symbolIndex = 0;
+                    const intervalId = setInterval(function () {
+                        if (finished) return;
+                        const live = xhr.responseText || '';
+                        $('#responseContent').html(live + '<br>' + symbols[symbolIndex % symbols.length]);
+                        symbolIndex++;
+                    }, 200);
+
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState === 4) {
+                            finished = true;
+                            clearInterval(intervalId);
+                            $('#runningHint').hide();
+                            if (xhr.status === 200) {
+                                $('#responseContent').html((xhr.responseText || '') + '<br>');
+                                toast('执行完成', 'ok');
+                            } else {
+                                $('#responseContent').text('执行请求失败（HTTP ' + xhr.status + '）');
+                                toast('执行请求失败', 'bad');
+                            }
+                            loadData(auditContext.gitType, true);
+                        }
+                    };
+                    xhr.send();
+                }).fail(function () {
+                    $('#runningHint').hide();
+                    $('#responseContent').text('执行请求失败，请稍后重试');
+                    toast('执行请求失败', 'bad');
+                });
             });
 
-            $('.closeModal').on('click', function() {
-                $('.modal').hide();
-            });
-
-            // Shooting Stars Animation Logic
-            function createShootingStar() {
-                const starsContainer = document.querySelector('.shooting-stars');
-                const star = document.createElement('div');
-                star.classList.add('star');
-
-                // Random size for the star
-                const size = Math.random() * 3 + 1;
-                star.style.width = `${size}px`;
-                star.style.height = `${size}px`;
-
-                // Random position at the top of the screen
-                const startX = Math.random() * window.innerWidth;
-                const startY = Math.random() * window.innerHeight * 0.3;
-                star.style.left = `${startX}px`;
-                star.style.top = `${startY}px`;
-
-                // Random direction and distance
-                const distanceX = (Math.random() * 200 + 100) * (Math.random() > 0.5 ? 1 : -1);
-                const distanceY = Math.random() * 300 + 200;
-                star.style.setProperty('--distance-x', `${distanceX}px`);
-                star.style.setProperty('--distance-y', `${distanceY}px`);
-
-                // Random animation duration
-                const duration = Math.random() * 3 + 2;
-                star.style.animationDuration = `${duration}s`;
-
-                starsContainer.appendChild(star);
-
-                // Remove the star after animation completes
-                setTimeout(() => {
-                    star.remove();
-                }, duration * 1000);
+            // ============ Clock ============
+            function tickClock() {
+                const now = new Date();
+                const pad = function (n) { return String(n).padStart(2, '0'); };
+                $('#clock').text(
+                    now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) +
+                    ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds())
+                );
             }
+            tickClock();
+            setInterval(tickClock, 1000);
 
-            // Create shooting stars at regular intervals
-            setInterval(createShootingStar, 1000);
-            
-            // Create initial shooting stars
-            for (let i = 0; i < 5; i++) {
-                setTimeout(createShootingStar, i * 500);
-            }
+            // ============ Boot ============
+            $('#apiSource').text(API_BASE.replace(/^https?:\/\//, ''));
+            restoreTabState();
+            loadData(activeGitType());
+            // Auto-refresh the active list every 60s without flashing the skeleton.
+            setInterval(function () { loadData(activeGitType(), true); }, 60000);
         });
     </script>
-    <!-- Shooting Stars Container -->
-    <div class="shooting-stars"></div>
 </body>
 </html>

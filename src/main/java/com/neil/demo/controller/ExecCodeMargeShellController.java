@@ -18,7 +18,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/shell")
@@ -169,6 +171,28 @@ public class ExecCodeMargeShellController {
     public List<ShellVo.MargeVo> select(@RequestParam(value = "gitType", required = false) Integer gitType) {
         List<GitAuditRecord> gitAuditRecordList = gitAuditRecordMapper.selectAll(gitType);
         return ExecGitConverter.INSTANCE.gitAuditRecordToVo(gitAuditRecordList);
+    }
+
+    /**
+     * 分页查询。老的 select 接口保持不动（仍返回最近 100 条数组），
+     * 新页面使用本接口获取总数与分页数据。
+     */
+    @GetMapping("selectPage")
+    public Map<String, Object> selectPage(@RequestParam(value = "gitType") Integer gitType,
+                                          @RequestParam(value = "page", defaultValue = "1") int page,
+                                          @RequestParam(value = "size", defaultValue = "20") int size) {
+        if (page < 1) page = 1;
+        if (size < 1) size = 20;
+        if (size > 200) size = 200;
+        int offset = (page - 1) * size;
+        int total = gitAuditRecordMapper.countAll(gitType);
+        List<GitAuditRecord> gitAuditRecordList = gitAuditRecordMapper.selectPage(gitType, offset, size);
+        Map<String, Object> result = new HashMap<>(4);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("records", ExecGitConverter.INSTANCE.gitAuditRecordToVo(gitAuditRecordList));
+        return result;
     }
 
     @PostMapping("submit")

@@ -1,0 +1,1791 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git Management System</title>
+<script src="/jquery-3.6.0.min.js"></script>
+<style>
+    /*
+     * Shape rule (locked): CTAs & badges & chips full-pill, icon buttons 12px squircle,
+     * inputs 10px, cards 18px.
+     * Palette lock: cyan accent (#22d3ee) + violet decorative only;
+     * red/amber/green reserved for status semantics.
+     */
+    :root {
+        --bg-1: rgb(9, 7, 32);
+        --bg-2: rgb(5, 11, 40);
+        --surface: rgba(13, 17, 38, 0.72);
+        --surface-2: rgba(20, 25, 52, 0.6);
+        --surface-input: rgba(255, 255, 255, 0.04);
+        --border: rgba(148, 163, 216, 0.14);
+        --border-strong: rgba(148, 163, 216, 0.28);
+        --text: #eef1ff;
+        --text-2: #9aa3c7;
+        --text-3: #6b7299;
+        --accent: #22d3ee;
+        --accent-soft: #67e8f9;
+        --accent-deep: #0ea5c4;
+        --accent-ink: #04222a;
+        --violet: #a78bfa;
+        --ok: #34d399;
+        --warn: #fbbf24;
+        --bad: #f87171;
+        --radius-card: 18px;
+        --radius-input: 10px;
+        --font-sans: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+        font-family: var(--font-sans);
+        color: var(--text);
+        background: var(--bg-1);
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection { background: rgba(34, 211, 238, 0.3); color: #fff; }
+
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 216, 0.2);
+        border-radius: 999px;
+        border: 3px solid transparent;
+        background-clip: content-box;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 216, 0.35); background-clip: content-box; border: 3px solid transparent; }
+
+    .mono { font-family: var(--font-mono); }
+
+    /* ---------- Gooey gradient background ---------- */
+    .gooey-stage {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background: linear-gradient(40deg, var(--bg-1), var(--bg-2));
+        overflow: hidden;
+    }
+
+    .gooey-stage svg.goo-defs { position: absolute; width: 0; height: 0; }
+
+    .goo-blobs {
+        filter: url(#goo) blur(48px);
+        width: 100%;
+        height: 100%;
+    }
+
+    .blob {
+        position: absolute;
+        mix-blend-mode: hard-light;
+        will-change: transform;
+    }
+
+    .b1 {
+        background: radial-gradient(circle at center, rgba(56, 130, 246, 0.85) 0, rgba(56, 130, 246, 0) 50%) no-repeat;
+        width: 78%; height: 78%;
+        top: calc(50% - 39%); left: calc(50% - 39%);
+        animation: moveVertical 30s ease infinite;
+    }
+
+    .b2 {
+        background: radial-gradient(circle at center, rgba(139, 92, 246, 0.85) 0, rgba(139, 92, 246, 0) 50%) no-repeat;
+        width: 78%; height: 78%;
+        top: calc(50% - 39%); left: calc(50% - 39%);
+        transform-origin: calc(50% - 400px);
+        animation: moveInCircle 20s reverse infinite;
+    }
+
+    .b3 {
+        background: radial-gradient(circle at center, rgba(34, 211, 238, 0.75) 0, rgba(34, 211, 238, 0) 50%) no-repeat;
+        width: 72%; height: 72%;
+        top: calc(50% - 36% + 200px); left: calc(50% - 36% - 480px);
+        transform-origin: calc(50% + 400px);
+        animation: moveInCircle 40s linear infinite;
+    }
+
+    .b4 {
+        background: radial-gradient(circle at center, rgba(79, 70, 229, 0.8) 0, rgba(79, 70, 229, 0) 50%) no-repeat;
+        width: 78%; height: 78%;
+        top: calc(50% - 39%); left: calc(50% - 39%);
+        transform-origin: calc(50% - 200px);
+        animation: moveHorizontal 40s ease infinite;
+        opacity: 0.7;
+    }
+
+    .b5 {
+        background: radial-gradient(circle at center, rgba(45, 155, 210, 0.7) 0, rgba(45, 155, 210, 0) 50%) no-repeat;
+        width: 140%; height: 140%;
+        top: calc(50% - 70%); left: calc(50% - 70%);
+        transform-origin: calc(50% - 700px) calc(50% + 200px);
+        animation: moveInCircle 22s ease infinite;
+    }
+
+    .blob-interactive {
+        background: radial-gradient(circle at center, rgba(140, 100, 255, 0.55) 0, rgba(140, 100, 255, 0) 50%) no-repeat;
+        width: 100%; height: 100%;
+        top: -50%; left: -50%;
+        opacity: 0.65;
+        /* transform driven by JS, no layout work */
+    }
+
+    @keyframes moveInCircle {
+        0% { transform: rotate(0deg); }
+        50% { transform: rotate(180deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes moveVertical {
+        0% { transform: translateY(-50%); }
+        50% { transform: translateY(50%); }
+        100% { transform: translateY(-50%); }
+    }
+
+    @keyframes moveHorizontal {
+        0% { transform: translateX(-50%) translateY(-10%); }
+        50% { transform: translateX(50%) translateY(10%); }
+        100% { transform: translateX(-50%) translateY(-10%); }
+    }
+
+    /* Dim the blobs behind content for readable text without killing the liquid feel */
+    .gooey-veil {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background: radial-gradient(ellipse at center, rgba(8, 10, 34, 0.45) 0%, rgba(8, 10, 34, 0.66) 100%);
+    }
+
+    /* Film grain, pure decoration */
+    .noise {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+        pointer-events: none;
+        opacity: 0.05;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .blob { animation: none !important; }
+        .blob-interactive { display: none; }
+        .brand-orb { animation: none !important; }
+        html { scroll-behavior: auto; }
+    }
+
+    /* ---------- App shell: left rail + main ---------- */
+    .shell {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: 264px minmax(0, 1fr);
+        min-height: 100dvh;
+    }
+
+    .rail {
+        position: sticky;
+        top: 0;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+        padding: 30px 20px 24px;
+        border-right: 1px solid var(--border);
+        background: rgba(7, 9, 28, 0.5);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    .brand { display: flex; align-items: center; gap: 13px; padding: 0 6px; }
+
+    .brand-orb {
+        flex: none;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 32% 28%, #a5f3fc 0%, var(--accent) 42%, #4f46e5 92%);
+        box-shadow: 0 0 20px rgba(34, 211, 238, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.3);
+        animation: orbFloat 6s ease-in-out infinite;
+    }
+
+    @keyframes orbFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); }
+    }
+
+    .brand-text strong { display: block; font-size: 1.02rem; letter-spacing: 0.4px; }
+    .brand-text small {
+        display: block;
+        margin-top: 2px;
+        font-family: var(--font-mono);
+        font-size: 0.66rem;
+        letter-spacing: 0.16em;
+        color: var(--text-3);
+        text-transform: uppercase;
+    }
+
+    .rail-label {
+        padding: 0 8px;
+        font-family: var(--font-mono);
+        font-size: 0.66rem;
+        letter-spacing: 0.2em;
+        color: var(--text-3);
+    }
+
+    .rail-nav { display: flex; flex-direction: column; gap: 6px; }
+
+    .rail-item {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 13px 14px;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        background: transparent;
+        color: var(--text-2);
+        font-family: inherit;
+        font-size: 0.94rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: left;
+        transition: color 0.22s ease, background 0.22s ease, border-color 0.22s ease, transform 0.15s ease;
+    }
+
+    .rail-item:active { transform: scale(0.98); }
+
+    .rail-item svg { flex: none; opacity: 0.75; transition: opacity 0.22s ease; }
+
+    /* Sliding active indicator bar */
+    .rail-item::before {
+        content: '';
+        position: absolute;
+        left: -20px;
+        top: 50%;
+        width: 3px;
+        height: 0;
+        border-radius: 999px;
+        background: linear-gradient(180deg, var(--accent), var(--violet));
+        box-shadow: 0 0 10px rgba(34, 211, 238, 0.7);
+        transform: translateY(-50%);
+        transition: height 0.3s cubic-bezier(0.34, 1.3, 0.64, 1);
+    }
+
+    .rail-item:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+
+    .rail-item.active {
+        color: var(--text);
+        background: linear-gradient(115deg, rgba(34, 211, 238, 0.14), rgba(167, 139, 250, 0.07));
+        border-color: rgba(34, 211, 238, 0.26);
+    }
+
+    .rail-item.active svg { opacity: 1; color: var(--accent); }
+    .rail-item.active::before { height: 58%; }
+
+    .rail-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .rail-item-tag {
+        margin-left: auto;
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        letter-spacing: 0.14em;
+        color: var(--text-3);
+        transition: color 0.22s ease;
+    }
+
+    .rail-item.active .rail-item-tag { color: var(--accent); }
+
+    .rail-foot { margin-top: auto; }
+
+    .conn-card {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 13px 15px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface-input);
+        transition: border-color 0.3s ease;
+    }
+
+    .conn-dot {
+        position: relative;
+        flex: none;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--text-3);
+        transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .conn-card.is-ok { border-color: rgba(52, 211, 153, 0.32); }
+    .conn-card.is-ok .conn-dot { background: var(--ok); box-shadow: 0 0 10px rgba(52, 211, 153, 0.8); }
+    .conn-card.is-ok .conn-dot::after {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        border-radius: 50%;
+        border: 1px solid rgba(52, 211, 153, 0.55);
+        animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    .conn-card.is-bad { border-color: rgba(248, 113, 113, 0.32); }
+    .conn-card.is-bad .conn-dot { background: var(--bad); box-shadow: 0 0 10px rgba(248, 113, 113, 0.8); }
+
+    @keyframes ping {
+        0% { transform: scale(0.6); opacity: 1; }
+        100% { transform: scale(1.7); opacity: 0; }
+    }
+
+    .conn-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .conn-card-text span { font-size: 0.84rem; font-weight: 600; color: var(--text); white-space: nowrap; }
+    .conn-card-text small {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--text-3);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* ---------- Main column ---------- */
+    .main { padding: 44px 44px 40px; }
+
+    .main-inner { max-width: 1180px; margin: 0 auto; }
+
+    /* ---------- Hero ---------- */
+    .hero {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 28px;
+        flex-wrap: wrap;
+        margin-bottom: 34px;
+    }
+
+    .hero-eyebrow {
+        display: flex;
+        align-items: center;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.24em;
+        color: var(--accent);
+        margin-bottom: 14px;
+    }
+
+    .hero-eyebrow::before {
+        content: '';
+        width: 7px;
+        height: 7px;
+        margin-right: 11px;
+        background: var(--accent);
+        box-shadow: 0 0 12px var(--accent);
+    }
+
+    .hero-title {
+        position: relative;
+        font-size: clamp(2.4rem, 5vw, 3.6rem);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        line-height: 1.08;
+        z-index: 0;
+    }
+
+    .hero-title .grad {
+        background: linear-gradient(95deg, var(--accent-soft) 0%, var(--accent) 45%, var(--violet) 105%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    /* Giant outlined ghost word behind the title */
+    .hero-ghost {
+        position: absolute;
+        left: -10px;
+        bottom: -14px;
+        z-index: -1;
+        font-size: clamp(4.6rem, 10vw, 8.4rem);
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        line-height: 1;
+        color: transparent;
+        -webkit-text-stroke: 1px rgba(148, 163, 216, 0.15);
+        user-select: none;
+        pointer-events: none;
+        white-space: nowrap;
+    }
+
+    .hero-sub { margin-top: 16px; color: var(--text-2); font-size: 0.95rem; max-width: 52ch; }
+
+    .hero-meta { text-align: right; padding-bottom: 4px; }
+
+    .hero-meta-label {
+        font-family: var(--font-mono);
+        font-size: 0.64rem;
+        letter-spacing: 0.22em;
+        color: var(--text-3);
+        margin-bottom: 6px;
+    }
+
+    .hero-clock {
+        font-family: var(--font-mono);
+        font-size: 1.06rem;
+        color: var(--text);
+        letter-spacing: 0.06em;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- Panel ---------- */
+    .panel {
+        position: relative;
+        background: var(--surface);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border-radius: var(--radius-card);
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.55);
+    }
+
+    /* Gradient hairline border, masked to the edge */
+    .panel::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(135deg, rgba(103, 232, 249, 0.5), rgba(148, 163, 216, 0.07) 38%, rgba(167, 139, 250, 0.38));
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+    }
+
+    .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .panel-kicker {
+        font-family: var(--font-mono);
+        font-size: 0.64rem;
+        letter-spacing: 0.22em;
+        color: var(--text-3);
+        margin-bottom: 5px;
+    }
+
+    .panel-title { font-size: 1.16rem; font-weight: 700; }
+
+    .tab-content { display: none; padding: 22px 24px 26px; animation: fadeUp 0.4s ease; }
+    .tab-content.active { display: block; }
+
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+
+    .record-count {
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        letter-spacing: 0.04em;
+        color: var(--text-2);
+        padding: 5px 13px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-input);
+    }
+
+    .record-count:empty { display: none; }
+
+    /* ---------- Buttons ---------- */
+    .btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        padding: 11px 24px;
+        border: none;
+        border-radius: 999px;
+        font-family: inherit;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: transform 0.15s ease, box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease, color 0.25s ease, opacity 0.2s ease;
+    }
+
+    .btn:active { transform: translateY(1px) scale(0.98); }
+
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* Glowing CTA with a shine sweep */
+    .btn-primary {
+        overflow: hidden;
+        color: var(--accent-ink);
+        background: linear-gradient(120deg, var(--accent-soft) 0%, var(--accent) 52%, var(--accent-deep) 115%);
+        box-shadow: inset 0 0 0 1px rgba(165, 243, 252, 0.45), 0 8px 26px rgba(34, 211, 238, 0.34), 0 2px 8px rgba(2, 6, 23, 0.5);
+    }
+
+    .btn-primary::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 46%);
+        pointer-events: none;
+    }
+
+    .btn-primary::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -70%;
+        width: 42%;
+        background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+        transform: skewX(-20deg);
+        transition: left 0.65s ease;
+        pointer-events: none;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: inset 0 0 0 1px rgba(165, 243, 252, 0.6), 0 12px 34px rgba(34, 211, 238, 0.5), 0 2px 8px rgba(2, 6, 23, 0.5);
+    }
+
+    .btn-primary:hover::after { left: 135%; }
+
+    .btn-primary:active { transform: translateY(0) scale(0.98); }
+
+    .btn-primary svg { flex: none; }
+
+    .btn-secondary {
+        color: var(--text);
+        background: var(--surface-input);
+        border: 1px solid var(--border-strong);
+        backdrop-filter: blur(8px);
+    }
+
+    .btn-secondary:hover {
+        border-color: rgba(34, 211, 238, 0.55);
+        color: var(--accent);
+        background: rgba(34, 211, 238, 0.08);
+        box-shadow: 0 0 18px rgba(34, 211, 238, 0.12);
+    }
+
+    .btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none;
+    }
+
+    .btn[disabled]::after { display: none; }
+
+    /* Squircle icon button (refresh) */
+    .btn-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        border: 1px solid var(--border-strong);
+        background: var(--surface-input);
+        color: var(--text-2);
+        cursor: pointer;
+        transition: color 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, transform 0.15s ease;
+    }
+
+    .btn-icon svg { transition: transform 0.6s cubic-bezier(0.34, 1.2, 0.64, 1); }
+
+    .btn-icon:hover {
+        color: var(--accent);
+        border-color: rgba(34, 211, 238, 0.55);
+        box-shadow: 0 0 16px rgba(34, 211, 238, 0.16);
+    }
+
+    .btn-icon:active { transform: scale(0.94); }
+    .btn-icon.is-spinning svg { transform: rotate(360deg); }
+    .btn-icon:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ---------- Table ---------- */
+    .table-wrap {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: auto;
+        background: rgba(8, 11, 28, 0.45);
+        max-height: 60vh;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+        min-width: 1080px;
+    }
+
+    thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        text-align: left;
+        padding: 13px 14px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        color: var(--text-3);
+        background: rgba(10, 14, 34, 0.88);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border-strong);
+        white-space: nowrap;
+    }
+
+    tbody td {
+        padding: 13px 14px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        vertical-align: middle;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    tbody tr { transition: background 0.18s ease; }
+    tbody tr:hover { background: linear-gradient(90deg, rgba(34, 211, 238, 0.07), transparent 62%); }
+    tbody tr:hover td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .cell-mono { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+    .cell-remark { color: var(--text-2); }
+    .cell-actions { white-space: nowrap; }
+
+    /* Status badges: dot + label pill */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 13px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        white-space: nowrap;
+        border: 1px solid transparent;
+    }
+
+    .badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 7px currentColor;
+    }
+
+    .badge-ok { color: var(--ok); background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.3); }
+    .badge-bad { color: var(--bad); background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.3); }
+    .badge-warn { color: var(--warn); background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3); }
+    .badge-idle { color: var(--text-2); background: rgba(148, 163, 216, 0.08); border-color: var(--border-strong); }
+
+    /* Row actions: underline-slide text links, audit gets an arrow */
+    .link-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 1px 3px;
+        border: none;
+        background: none;
+        background-image: linear-gradient(currentColor, currentColor);
+        background-size: 0% 1px;
+        background-position: 0 100%;
+        background-repeat: no-repeat;
+        color: var(--text-2);
+        font-family: inherit;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: color 0.2s ease, background-size 0.28s ease;
+    }
+
+    .link-btn:hover { color: var(--accent); background-size: 100% 1px; }
+    .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+    .link-btn + .link-btn { margin-left: 14px; }
+
+    .auditLink { color: var(--accent); }
+
+    .auditLink::after {
+        content: '\2192';
+        margin-left: 5px;
+        transition: transform 0.2s ease;
+    }
+
+    .auditLink:hover::after { transform: translateX(3px); }
+
+    /* Table states */
+    .table-state { padding: 58px 24px; text-align: center; color: var(--text-3); }
+    .table-state-title { font-size: 0.95rem; color: var(--text-2); margin-bottom: 6px; }
+    .table-state-sub { font-size: 0.82rem; }
+
+    .skeleton-row td { padding: 13px 14px; border-bottom: 1px solid var(--border); }
+
+    .skeleton-bar {
+        height: 14px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(148, 163, 216, 0.08) 25%, rgba(148, 163, 216, 0.2) 50%, rgba(148, 163, 216, 0.08) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.4s ease infinite;
+    }
+
+    @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    /* ---------- Modals ---------- */
+    .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        overflow-y: auto;
+        background: rgba(3, 5, 18, 0.68);
+        backdrop-filter: blur(7px);
+        -webkit-backdrop-filter: blur(7px);
+        animation: fadeIn 0.25s ease;
+    }
+
+    .modal.open { display: flex; align-items: flex-start; justify-content: center; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-card {
+        position: relative;
+        width: min(520px, calc(100vw - 40px));
+        margin: 9vh auto 6vh;
+        background: var(--surface);
+        backdrop-filter: blur(22px);
+        -webkit-backdrop-filter: blur(22px);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-card);
+        box-shadow: 0 32px 80px rgba(2, 6, 23, 0.68);
+        padding: 28px;
+        animation: popIn 0.32s cubic-bezier(0.34, 1.35, 0.64, 1);
+    }
+
+    /* Gradient hairline across the card top */
+    .modal-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 26px;
+        right: 26px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.65), rgba(167, 139, 250, 0.5), transparent);
+    }
+
+    .modal-card.modal-wide { width: min(880px, calc(100vw - 40px)); }
+
+    @keyframes popIn {
+        from { opacity: 0; transform: translateY(22px) scale(0.96); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 22px;
+    }
+
+    .modal-title { font-size: 1.12rem; font-weight: 700; }
+
+    .modal-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-3);
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: inherit;
+    }
+
+    .modal-close:hover { color: var(--text); border-color: var(--border-strong); background: rgba(255, 255, 255, 0.06); }
+
+    /* ---------- Forms ---------- */
+    .field { margin-bottom: 18px; }
+
+    .field label {
+        display: block;
+        font-size: 0.86rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .field label .req { color: var(--bad); margin-left: 3px; }
+
+    .field input,
+    .field select,
+    .field textarea {
+        width: 100%;
+        padding: 11px 14px;
+        border-radius: var(--radius-input);
+        border: 1px solid var(--border-strong);
+        background: var(--surface-input);
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.92rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .field select option { background: #12162e; color: var(--text); }
+    .field input::placeholder, .field textarea::placeholder { color: var(--text-3); }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.16);
+        background: rgba(34, 211, 238, 0.04);
+    }
+
+    .field input[disabled] { color: var(--text-2); cursor: not-allowed; }
+    .field textarea { resize: vertical; min-height: 96px; }
+
+    .field-hint { margin-top: 7px; font-size: 0.8rem; color: var(--text-3); }
+    .field-error { margin-top: 7px; font-size: 0.8rem; color: var(--bad); display: none; }
+    .field.has-error input, .field.has-error textarea, .field.has-error select { border-color: var(--bad); }
+    .field.has-error .field-error { display: block; }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 24px;
+    }
+
+    /* Exec log / response viewer */
+    .log-viewer {
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        line-height: 1.65;
+        color: #c7d2fe;
+        background: rgba(5, 8, 24, 0.78);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 18px;
+        max-height: 46vh;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .log-viewer:empty::before { content: '暂无执行记录'; color: var(--text-3); }
+
+    .spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(34, 211, 238, 0.25);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .running-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 14px;
+        font-size: 0.84rem;
+        color: var(--text-2);
+    }
+
+    /* ---------- Toasts ---------- */
+    .toast-stack {
+        position: fixed;
+        top: 22px;
+        right: 22px;
+        z-index: 200;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+    }
+
+    .toast {
+        pointer-events: auto;
+        min-width: 250px;
+        max-width: 360px;
+        padding: 13px 18px;
+        border-radius: 14px;
+        border: 1px solid var(--border-strong);
+        background: rgba(14, 18, 42, 0.94);
+        backdrop-filter: blur(16px);
+        box-shadow: 0 16px 44px rgba(2, 6, 23, 0.62);
+        font-size: 0.88rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        animation: toastIn 0.32s cubic-bezier(0.34, 1.3, 0.64, 1);
+    }
+
+    .toast.leaving { animation: toastOut 0.25s ease forwards; }
+
+    @keyframes toastIn {
+        from { opacity: 0; transform: translateX(26px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes toastOut {
+        to { opacity: 0; transform: translateX(26px); }
+    }
+
+    .toast-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none; }
+    .toast-ok .toast-dot { background: var(--ok); box-shadow: 0 0 8px rgba(52, 211, 153, 0.8); }
+    .toast-bad .toast-dot { background: var(--bad); box-shadow: 0 0 8px rgba(248, 113, 113, 0.8); }
+    .toast-info .toast-dot { background: var(--accent); box-shadow: 0 0 8px rgba(34, 211, 238, 0.8); }
+
+    /* ---------- Entrance choreography ---------- */
+    .reveal { animation: riseIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .reveal-1 { animation-delay: 0.05s; }
+    .reveal-2 { animation-delay: 0.14s; }
+    .reveal-3 { animation-delay: 0.22s; }
+
+    @keyframes riseIn {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---------- Footer ---------- */
+    .main-foot {
+        margin-top: 26px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        color: var(--text-3);
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1024px) {
+        .shell { grid-template-columns: 1fr; }
+
+        .rail {
+            position: relative;
+            height: auto;
+            flex-direction: row;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
+            padding: 16px 18px;
+            border-right: none;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand { padding: 0; }
+        .rail-label { display: none; }
+        .rail-nav { flex-direction: row; gap: 8px; flex: 1; }
+        .rail-item { width: auto; padding: 10px 16px; }
+        .rail-item::before { display: none; }
+        .rail-item-tag { display: none; }
+        .rail-foot { margin-top: 0; margin-left: auto; }
+        .conn-card-text small { display: none; }
+
+        .main { padding: 26px 18px 36px; }
+        .hero { margin-bottom: 24px; }
+        .hero-meta { display: none; }
+        .hero-ghost { font-size: 4.4rem; }
+        .table-wrap { max-height: 56vh; }
+        .modal-card { padding: 20px; margin: 6vh auto 4vh; }
+        .toast-stack { left: 14px; right: 14px; }
+        .toast { min-width: 0; max-width: none; }
+    }
+</style>
+</head>
+<body>
+    <!-- Gooey liquid gradient background -->
+    <div class="gooey-stage" aria-hidden="true">
+        <svg class="goo-defs" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <filter id="goo">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+                    <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="goo" />
+                    <feBlend in="SourceGraphic" in2="goo" />
+                </filter>
+            </defs>
+        </svg>
+        <div class="goo-blobs">
+            <div class="blob b1"></div>
+            <div class="blob b2"></div>
+            <div class="blob b3"></div>
+            <div class="blob b4"></div>
+            <div class="blob b5"></div>
+            <div class="blob blob-interactive" id="interactiveBlob"></div>
+        </div>
+    </div>
+    <div class="gooey-veil" aria-hidden="true"></div>
+    <div class="noise" aria-hidden="true"></div>
+
+    <div class="shell">
+        <!-- Left command rail -->
+        <aside class="rail">
+            <div class="brand reveal reveal-1">
+                <span class="brand-orb" aria-hidden="true"></span>
+                <div class="brand-text">
+                    <strong>GitOps</strong>
+                    <small>Audit Console</small>
+                </div>
+            </div>
+
+            <p class="rail-label">审核类型</p>
+            <nav class="rail-nav reveal reveal-2" role="tablist" aria-label="审核类型">
+                <button type="button" class="rail-item active" data-tab="merge-tab" role="tab" aria-selected="true">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="18" cy="18" r="3"></circle>
+                        <circle cx="6" cy="6" r="3"></circle>
+                        <path d="M6 21V9a9 9 0 0 0 9 9"></path>
+                    </svg>
+                    <span>合并审核</span>
+                    <span class="rail-item-tag">MERGE</span>
+                </button>
+                <button type="button" class="rail-item" data-tab="newbranch-tab" role="tab" aria-selected="false">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="6" y1="3" x2="6" y2="15"></line>
+                        <circle cx="18" cy="6" r="3"></circle>
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <path d="M18 9a9 9 0 0 1-9 9"></path>
+                    </svg>
+                    <span>新开分支</span>
+                    <span class="rail-item-tag">BRANCH</span>
+                </button>
+            </nav>
+
+            <div class="rail-foot reveal reveal-3">
+                <div class="conn-card" id="connStatus" role="status" aria-live="polite">
+                    <span class="conn-dot"></span>
+                    <div class="conn-card-text">
+                        <span id="connText">正在连接服务…</span>
+                        <small>192.168.11.70:5555</small>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main column -->
+        <main class="main">
+            <div class="main-inner">
+                <header class="hero reveal reveal-1">
+                    <div>
+                        <p class="hero-eyebrow">GIT MANAGEMENT SYSTEM</p>
+                        <h1 class="hero-title">
+                            <span class="hero-ghost" aria-hidden="true">AUDIT</span>
+                            审核<span class="grad">控制台</span>
+                        </h1>
+                        <p class="hero-sub">合并申请与新开分支的统一审核中枢，所有审核操作将实时触发远程脚本执行。</p>
+                    </div>
+                    <div class="hero-meta">
+                        <p class="hero-meta-label">LOCAL TIME</p>
+                        <p class="hero-clock" id="clock">--</p>
+                    </div>
+                </header>
+
+                <section class="panel reveal reveal-2">
+                    <div class="panel-head">
+                        <div>
+                            <p class="panel-kicker">AUDIT RECORDS</p>
+                            <h2 class="panel-title" id="panelTitle">合并申请列表</h2>
+                        </div>
+                        <button id="refreshBtn" class="btn-icon" type="button" aria-label="刷新列表" title="刷新列表">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+            <!-- Code merge tab -->
+            <div id="merge-tab" class="tab-content active" role="tabpanel">
+                <div class="toolbar">
+                    <button id="submitMerge" class="btn btn-primary" type="button">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        发起合并
+                    </button>
+                    <span class="record-count" id="mergeCount"></span>
+                </div>
+                <div class="table-wrap">
+                    <table id="auditList">
+                        <thead>
+                            <tr>
+                                <th>流水号</th>
+                                <th>服务</th>
+                                <th>合并分支</th>
+                                <th>目标分支</th>
+                                <th>备注</th>
+                                <th>提交时间</th>
+                                <th>审核时间</th>
+                                <th>结果</th>
+                                <th>执行记录</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- New branch tab -->
+            <div id="newbranch-tab" class="tab-content" role="tabpanel">
+                <div class="toolbar">
+                    <button id="submitNewBranch" class="btn btn-primary" type="button">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        新开分支
+                    </button>
+                    <span class="record-count" id="newbranchCount"></span>
+                </div>
+                <div class="table-wrap">
+                    <table id="newbranchList">
+                        <thead>
+                            <tr>
+                                <th>流水号</th>
+                                <th>服务</th>
+                                <th>新开分支</th>
+                                <th>来源分支</th>
+                                <th>备注</th>
+                                <th>提交时间</th>
+                                <th>审核时间</th>
+                                <th>结果</th>
+                                <th>执行记录</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+                </section>
+
+                <footer class="main-foot reveal reveal-3">
+                    <span>GITOPS AUDIT CONSOLE</span>
+                    <span>INTERNAL TOOL · HANDLE WITH CARE</span>
+                </footer>
+            </div>
+        </main>
+    </div>
+
+    <!-- Merge modal -->
+    <div id="mergeModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="mergeModalTitle">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 class="modal-title" id="mergeModalTitle">发起代码合并</h3>
+                <button class="modal-close" type="button" data-close aria-label="关闭">&#10005;</button>
+            </div>
+            <form id="mergeForm" novalidate>
+                <div class="field">
+                    <label for="serviceName">服务<span class="req">*</span></label>
+                    <select id="serviceName" name="serviceName">
+                        <option value="billservice">billservice</option>
+                        <option value="goodsservice">goodsservice</option>
+                        <option value="StatisticsService">StatisticsService</option>
+                        <option value="imexportservice">imexportservice</option>
+                        <option value="saassystemsetting">saassystemsetting</option>
+                        <option value="customerservice">customerservice</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="formBranch">合并分支<span class="req">*</span></label>
+                    <input type="text" id="formBranch" name="formBranch" placeholder="要合并的分支名">
+                    <p class="field-error">请填写合并分支</p>
+                </div>
+                <div class="field">
+                    <label for="targetBranch">目标分支</label>
+                    <select id="targetBranch" name="targetBranch">
+                        <option value="pre" selected>pre</option>
+                        <option value="pre_temp">pre_temp</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="remark">备注<span class="req">*</span></label>
+                    <textarea id="remark" name="remark" placeholder="marge:用户名+功能"></textarea>
+                    <p class="field-hint">备注格式：marge:用户名+功能</p>
+                    <p class="field-error">请填写备注信息</p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" data-close>关闭</button>
+                    <button type="submit" class="btn btn-primary" id="mergeSubmitBtn">确定</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- New branch modal -->
+    <div id="newbranchModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="newbranchModalTitle">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 class="modal-title" id="newbranchModalTitle">新开分支</h3>
+                <button class="modal-close" type="button" data-close aria-label="关闭">&#10005;</button>
+            </div>
+            <form id="newbranchForm" novalidate>
+                <div class="field">
+                    <label for="newService">服务<span class="req">*</span></label>
+                    <select id="newService" name="serviceName">
+                        <option value="billservice">billservice</option>
+                        <option value="goodsservice">goodsservice</option>
+                        <option value="StatisticsService">StatisticsService</option>
+                        <option value="imexportservice">imexportservice</option>
+                        <option value="saassystemsetting">saassystemsetting</option>
+                        <option value="customerservice">customerservice</option>
+                        <option value="erpadapter">erpadapter</option>
+                        <option value="printservice">printservice</option>
+                        <option value="shopdecorationservice">shopdecorationservice</option>
+                        <option value="marketingservice">marketingservice</option>
+                        <option value="logisticsservice">logisticsservice</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="newBranchName">新开分支<span class="req">*</span></label>
+                    <input type="text" id="newBranchName" name="newBranchName" placeholder="新分支名">
+                    <p class="field-error">请填写新开分支</p>
+                </div>
+                <div class="field">
+                    <label for="sourceBranch">来源分支<span class="req">*</span></label>
+                    <input type="text" id="sourceBranch" name="sourceBranch" list="sourceBranchOptions" placeholder="uat / master">
+                    <datalist id="sourceBranchOptions">
+                        <option value="uat">uat</option>
+                        <option value="master">master</option>
+                    </datalist>
+                    <p class="field-error">请填写来源分支</p>
+                </div>
+                <div class="field">
+                    <label for="newRemark">备注<span class="req">*</span></label>
+                    <textarea id="newRemark" name="remark" placeholder="用户名+新开分支说明"></textarea>
+                    <p class="field-hint">备注格式：用户名+新开分支说明</p>
+                    <p class="field-error">请填写备注信息</p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" data-close>关闭</button>
+                    <button type="submit" class="btn btn-primary" id="newbranchSubmitBtn">确定</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Audit modal -->
+    <div id="auditModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="auditModalTitle">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3 class="modal-title" id="auditModalTitle">验证审核</h3>
+                <button class="modal-close" type="button" data-close aria-label="关闭">&#10005;</button>
+            </div>
+            <div class="field">
+                <label for="auditTargetInfo">审核对象</label>
+                <input type="text" id="auditTargetInfo" readonly disabled>
+            </div>
+            <div class="field">
+                <label for="password">验证密码<span class="req">*</span></label>
+                <input type="password" id="password" name="password" autocomplete="off" placeholder="请输入审核密码，回车确认">
+                <p class="field-error" id="passwordError">密码错误</p>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" data-close>关闭</button>
+                <button type="button" id="verifyBtn" class="btn btn-primary">验证</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exec log modal -->
+    <div id="execLogModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="execLogModalTitle">
+        <div class="modal-card modal-wide">
+            <div class="modal-head">
+                <h3 class="modal-title" id="execLogModalTitle">执行记录</h3>
+                <button class="modal-close" type="button" data-close aria-label="关闭">&#10005;</button>
+            </div>
+            <div id="execLogContent" class="log-viewer"></div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" data-close>关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Response modal -->
+    <div id="responseModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="responseModalTitle">
+        <div class="modal-card modal-wide">
+            <div class="modal-head">
+                <h3 class="modal-title" id="responseModalTitle">执行结果</h3>
+                <button class="modal-close" type="button" data-close aria-label="关闭">&#10005;</button>
+            </div>
+            <div id="responseContent" class="log-viewer"></div>
+            <div class="running-hint" id="runningHint" style="display:none;">
+                <span class="spinner"></span><span>正在执行，请稍候…</span>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" data-close>关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+    <script>
+        // ============ Gooey interactive blob (rAF easing, no reflow) ============
+        (function initGooey() {
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (reduceMotion) return;
+            const blob = document.getElementById('interactiveBlob');
+            if (!blob) return;
+            let curX = 0, curY = 0, tgX = 0, tgY = 0;
+            window.addEventListener('mousemove', function (e) {
+                tgX = e.clientX;
+                tgY = e.clientY;
+            }, { passive: true });
+            (function animate() {
+                curX += (tgX - curX) / 20;
+                curY += (tgY - curY) / 20;
+                blob.style.transform = 'translate(' + Math.round(curX) + 'px, ' + Math.round(curY) + 'px)';
+                requestAnimationFrame(animate);
+            })();
+        })();
+
+        $(document).ready(function () {
+            const API_BASE = 'http://192.168.11.70:5555';
+
+            // Password map per service, kept verbatim from the original page (upstream design).
+            const SERVICE_PASSWORDS = {
+                'billservice': ['123456'],
+                'StatisticsService': ['ldh'],
+                'goodsservice': ['zyh'],
+                'imexportservice': ['liuzhi'],
+                'saassystemsetting': ['liuzhi'],
+                'customerservice': ['lqy'],
+                'erpadapter': ['zxg'],
+                'printservice': ['hc'],
+                'shopdecorationservice': ['hpy'],
+                'marketingservice': ['hpy'],
+                'logisticsservice': ['hpy']
+            };
+
+            // Current audit target, set when an audit link is clicked.
+            let auditContext = null;
+
+            // ============ Helpers ============
+            function escapeHtml(value) {
+                if (value === null || value === undefined) return '';
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function toast(message, kind) {
+                const cls = kind === 'bad' ? 'toast-bad' : kind === 'ok' ? 'toast-ok' : 'toast-info';
+                const $toast = $('<div class="toast ' + cls + '"><span class="toast-dot"></span><div></div></div>');
+                $toast.find('div').text(message);
+                $('#toastStack').append($toast);
+                setTimeout(function () {
+                    $toast.addClass('leaving');
+                    setTimeout(function () { $toast.remove(); }, 260);
+                }, 3200);
+            }
+
+            function badgeFor(result) {
+                const text = (result || '').toString();
+                if (/成功|通过|完成/.test(text)) return '<span class="badge badge-ok">' + escapeHtml(text) + '</span>';
+                if (/失败|异常|错误/.test(text)) return '<span class="badge badge-bad">' + escapeHtml(text) + '</span>';
+                if (text.trim() === '' || /待|未审核/.test(text)) return '<span class="badge badge-warn">' + (text.trim() === '' ? '待审核' : escapeHtml(text)) + '</span>';
+                return '<span class="badge badge-idle">' + escapeHtml(text) + '</span>';
+            }
+
+            function activeGitType() {
+                return $('.rail-item.active').data('tab') === 'merge-tab' ? 0 : 1;
+            }
+
+            // ============ Modal manager ============
+            function openModal(id) {
+                $(id).addClass('open');
+                const $first = $(id).find('input:not([disabled]):not([readonly]), select, textarea').first();
+                setTimeout(function () { $first.trigger('focus'); }, 60);
+            }
+
+            function closeModal($modal) {
+                $modal.removeClass('open');
+            }
+
+            $(document).on('click', '.modal [data-close]', function () {
+                closeModal($(this).closest('.modal'));
+            });
+
+            $(document).on('click', '.modal', function (e) {
+                if (e.target === this) closeModal($(this));
+            });
+
+            $(document).on('keydown', function (e) {
+                if (e.key === 'Escape') $('.modal.open').each(function () { closeModal($(this)); });
+            });
+
+            function clearForm($form) {
+                $form.find('.field').removeClass('has-error');
+                $form.find('input[type="text"], input[type="password"], textarea').val('');
+            }
+
+            // ============ Connection status probe ============
+            function probeConnection(ok) {
+                const $status = $('#connStatus');
+                $status.removeClass('is-ok is-bad').addClass(ok ? 'is-ok' : 'is-bad');
+                $('#connText').text(ok ? '服务已连接' : '服务连接失败');
+            }
+
+            // ============ Data loading ============
+            function skeletonRows(colSpan) {
+                let rows = '';
+                for (let i = 0; i < 5; i++) {
+                    rows += '<tr class="skeleton-row">';
+                    for (let j = 0; j < colSpan; j++) rows += '<td><div class="skeleton-bar"></div></td>';
+                    rows += '</tr>';
+                }
+                return rows;
+            }
+
+            function stateRow(colSpan, title, sub) {
+                return '<tr><td colspan="' + colSpan + '"><div class="table-state">' +
+                    '<div class="table-state-title">' + escapeHtml(title) + '</div>' +
+                    '<div class="table-state-sub">' + escapeHtml(sub) + '</div></div></td></tr>';
+            }
+
+            function loadData(gitType) {
+                const isMerge = gitType === 0;
+                const $tbody = $(isMerge ? '#auditList' : '#newbranchList').find('tbody');
+                const $count = $(isMerge ? '#mergeCount' : '#newbranchCount');
+                const colCount = 10;
+                $tbody.html(skeletonRows(colCount));
+
+                $.get(API_BASE + '/shell/select', { gitType: gitType })
+                    .done(function (data) {
+                        if (isMerge) probeConnection(true);
+                        $tbody.empty();
+                        if (!data || data.length === 0) {
+                            $tbody.html(stateRow(colCount, '暂无记录', '点击左上角按钮发起一条新的申请'));
+                            $count.text('');
+                            return;
+                        }
+                        data.forEach(function (item) {
+                            const branchCells = isMerge
+                                ? '<td class="cell-mono">' + escapeHtml(item.formBranch) + '</td><td class="cell-mono">' + escapeHtml(item.targetBranch) + '</td>'
+                                : '<td class="cell-mono">' + escapeHtml(item.formBranch) + '</td><td class="cell-mono">' + escapeHtml(item.targetBranch) + '</td>';
+                            const $row = $('<tr>' +
+                                '<td class="cell-mono">' + escapeHtml(item.serialNumber) + '</td>' +
+                                '<td>' + escapeHtml(item.serviceName) + '</td>' +
+                                branchCells +
+                                '<td class="cell-remark" title="' + escapeHtml(item.remark) + '">' + escapeHtml(item.remark) + '</td>' +
+                                '<td class="cell-mono">' + escapeHtml(item.submitTime) + '</td>' +
+                                '<td class="cell-mono">' + escapeHtml(item.auditTime) + '</td>' +
+                                '<td>' + badgeFor(item.result) + '</td>' +
+                                '<td class="cell-actions"><button type="button" class="link-btn execLogLink">执行记录</button></td>' +
+                                '<td class="cell-actions"><button type="button" class="link-btn auditLink">审核</button></td>' +
+                                '</tr>');
+                            // Row payload kept out of the DOM tree (replaces the old hidden-td pattern).
+                            $row.data('record', {
+                                id: item.id,
+                                serialNumber: item.serialNumber,
+                                serviceName: item.serviceName,
+                                execLog: item.execLog
+                            });
+                            $tbody.append($row);
+                        });
+                        $count.text('共 ' + data.length + ' 条');
+                    })
+                    .fail(function () {
+                        if (isMerge) probeConnection(false);
+                        $tbody.html(stateRow(colCount, '数据加载失败', '请检查服务连接后点击右上角"刷新列表"重试'));
+                        $count.text('');
+                        toast('列表加载失败，请检查服务是否可用', 'bad');
+                    });
+            }
+
+            function refreshActive() { loadData(activeGitType()); }
+
+            // ============ Tabs ============
+            function saveTabState(tabId) { localStorage.setItem('activeTab', tabId); }
+
+            function activateTab($item) {
+                $('.rail-item, .tab-content').removeClass('active');
+                $('.rail-item').attr('aria-selected', 'false');
+                $item.addClass('active').attr('aria-selected', 'true');
+                const tabId = $item.data('tab');
+                saveTabState(tabId);
+                $('#' + tabId).addClass('active');
+                $('#panelTitle').text(tabId === 'merge-tab' ? '合并申请列表' : '分支申请列表');
+                loadData(tabId === 'merge-tab' ? 0 : 1);
+            }
+
+            // rail-item is a <button>: Enter/Space fire click natively, no keydown shim needed.
+            $('.rail-nav').on('click', '.rail-item', function () { activateTab($(this)); });
+
+            function restoreTabState() {
+                const savedTab = localStorage.getItem('activeTab');
+                const $item = $('.rail-item[data-tab="' + savedTab + '"]');
+                if (savedTab && $item.length) activateTab($item);
+            }
+
+            $('#refreshBtn').on('click', function () {
+                const $btn = $(this).addClass('is-spinning');
+                setTimeout(function () { $btn.removeClass('is-spinning'); }, 650);
+                refreshActive();
+            });
+
+            // ============ Form validation helpers ============
+            function requireField(id) {
+                const $input = $(id);
+                const ok = $input.val() && $input.val().trim() !== '';
+                $input.closest('.field').toggleClass('has-error', !ok);
+                return ok;
+            }
+
+            function submitWithLock($btn, work) {
+                if ($btn.prop('disabled')) return;
+                $btn.prop('disabled', true);
+                work().always(function () { $btn.prop('disabled', false); });
+            }
+
+            // ============ Merge submit ============
+            $('#submitMerge').on('click', function () {
+                clearForm($('#mergeForm'));
+                openModal('#mergeModal');
+            });
+
+            $('#mergeForm').on('submit', function (e) {
+                e.preventDefault();
+                const valid = requireField('#formBranch') & requireField('#remark');
+                if (!valid) return;
+
+                const formData = {
+                    serviceName: $('#serviceName').val(),
+                    formBranch: $('#formBranch').val().trim(),
+                    targetBranch: $('#targetBranch').val(),
+                    remark: $('#remark').val().trim(),
+                    gitType: 0
+                };
+
+                submitWithLock($('#mergeSubmitBtn'), function () {
+                    return $.ajax({
+                        url: API_BASE + '/shell/submit',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(formData)
+                    }).done(function (response) {
+                        if (response === true) {
+                            toast('合并申请提交成功', 'ok');
+                            loadData(0);
+                            closeModal($('#mergeModal'));
+                            saveTabState('merge-tab');
+                        } else {
+                            toast('提交未被接受，请检查填写内容', 'bad');
+                        }
+                    }).fail(function () {
+                        toast('提交失败，请稍后重试', 'bad');
+                    });
+                });
+            });
+
+            // ============ New branch submit ============
+            $('#submitNewBranch').on('click', function () {
+                clearForm($('#newbranchForm'));
+                openModal('#newbranchModal');
+            });
+
+            $('#newbranchForm').on('submit', function (e) {
+                e.preventDefault();
+                const valid = requireField('#newBranchName') & requireField('#sourceBranch') & requireField('#newRemark');
+                if (!valid) return;
+
+                const formData = {
+                    serviceName: $('#newService').val(),
+                    formBranch: $('#newBranchName').val().trim(),
+                    targetBranch: $('#sourceBranch').val().trim(),
+                    remark: $('#newRemark').val().trim(),
+                    gitType: 1
+                };
+
+                submitWithLock($('#newbranchSubmitBtn'), function () {
+                    return $.ajax({
+                        url: API_BASE + '/shell/checkOutNew',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(formData)
+                    }).done(function (response) {
+                        if (response === true) {
+                            toast('新开分支申请提交成功', 'ok');
+                            loadData(1);
+                            closeModal($('#newbranchModal'));
+                            saveTabState('newbranch-tab');
+                        } else {
+                            toast('提交未被接受，请检查填写内容', 'bad');
+                        }
+                    }).fail(function () {
+                        toast('提交失败，请稍后重试', 'bad');
+                    });
+                });
+            });
+
+            // ============ Exec log viewer ============
+            $(document).on('click', '.execLogLink', function () {
+                const record = $(this).closest('tr').data('record') || {};
+                const log = record.execLog;
+                const $viewer = $('#execLogContent');
+                $viewer.empty();
+                if (log && String(log).trim() !== '') {
+                    // Backend log may contain HTML; render as-is, same as the original page.
+                    $viewer.html(log);
+                }
+                openModal('#execLogModal');
+            });
+
+            // ============ Audit flow ============
+            $(document).on('click', '.auditLink', function () {
+                const record = $(this).closest('tr').data('record') || {};
+                auditContext = {
+                    id: record.id,
+                    serialNumber: record.serialNumber,
+                    serviceName: record.serviceName,
+                    gitType: activeGitType()
+                };
+                $('#auditTargetInfo').val(auditContext.serialNumber + ' / ' + auditContext.serviceName);
+                $('#password').val('').closest('.field').removeClass('has-error');
+                openModal('#auditModal');
+            });
+
+            // Bind once: Enter inside the password field confirms.
+            $('#password').on('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); $('#verifyBtn').trigger('click'); }
+            });
+
+            $('#verifyBtn').on('click', function () {
+                if (!auditContext) return;
+                const password = $('#password').val().trim();
+                const service = auditContext.serviceName;
+                const accepted = (SERVICE_PASSWORDS[service] || []).indexOf(password) !== -1;
+
+                if (!accepted) {
+                    $('#password').closest('.field').addClass('has-error');
+                    toast('验证失败：密码错误', 'bad');
+                    return;
+                }
+
+                $('#password').closest('.field').removeClass('has-error');
+                closeModal($('#auditModal'));
+                $('#responseContent').text('审核通过，正在执行…');
+                $('#runningHint').show();
+                openModal('#responseModal');
+
+                const apiUrl = auditContext.gitType === 0
+                    ? API_BASE + '/shell/marge'
+                    : API_BASE + '/shell/checkOut';
+
+                // Upstream protocol, kept as-is: async POST starts the shell job and
+                // creates the SSE emitter; a following GET on the same URL streams output.
+                $.ajax({
+                    url: apiUrl,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ id: auditContext.id, password: password })
+                }).done(function () {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('GET', apiUrl, true);
+                    xhr.setRequestHeader('Accept', 'text/event-stream');
+
+                    let finished = false;
+                    const symbols = ['\\', '|', '/', '-'];
+                    let symbolIndex = 0;
+                    const intervalId = setInterval(function () {
+                        if (finished) return;
+                        const live = xhr.responseText || '';
+                        $('#responseContent').html(live + '<br>' + symbols[symbolIndex % symbols.length]);
+                        symbolIndex++;
+                    }, 200);
+
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState === 4) {
+                            finished = true;
+                            clearInterval(intervalId);
+                            $('#runningHint').hide();
+                            if (xhr.status === 200) {
+                                $('#responseContent').html((xhr.responseText || '') + '<br>');
+                                toast('执行完成', 'ok');
+                            } else {
+                                $('#responseContent').text('执行请求失败（HTTP ' + xhr.status + '）');
+                                toast('执行请求失败', 'bad');
+                            }
+                            loadData(auditContext.gitType);
+                        }
+                    };
+                    xhr.send();
+                }).fail(function () {
+                    $('#runningHint').hide();
+                    $('#responseContent').text('执行请求失败，请稍后重试');
+                    toast('执行请求失败', 'bad');
+                });
+            });
+
+            // ============ Hero clock ============
+            function tickClock() {
+                const now = new Date();
+                const pad = function (n) { return String(n).padStart(2, '0'); };
+                $('#clock').text(
+                    now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) +
+                    ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds())
+                );
+            }
+            tickClock();
+            setInterval(tickClock, 1000);
+
+            // ============ Boot ============
+            restoreTabState();
+            loadData(0);
+            if ($('.rail-item.active').data('tab') === 'newbranch-tab') loadData(1);
+        });
+    </script>
+</body>
+</html>
