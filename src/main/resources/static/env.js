@@ -9,6 +9,6 @@
  * Deploy to another environment: just edit API_BASE here, no page changes needed.
  */
 window.ENV = {
-    //API_BASE: 'http://192.168.11.70:5555'
-    API_BASE: 'http://localhost:5555'
+    API_BASE: 'http://192.168.11.70:5555'
+    //API_BASE: 'http://localhost:5555'
 };
