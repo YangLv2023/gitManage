@@ -257,6 +257,10 @@
     .side-actions .btn { width: 100%; }
     .side-actions .btn + .btn { margin-top: 8px; }
 
+    /* Skill download card */
+    .skill-dl { width: 100%; text-decoration: none; }
+    .skill-dl .dl-glyph { font-family: var(--font-mono); opacity: 0.7; }
+
     /* Service distribution widget */
     .svc-row {
         display: flex;
@@ -897,6 +901,20 @@
 
             <!-- Side rail -->
             <aside class="side">
+                <!-- Agent skill download -->
+                <div class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="panel-kicker">Agent Skill</p>
+                            <h2 class="panel-title">handday-git-branch</h2>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <a class="btn btn-primary skill-dl" href="skill/download" download><span class="dl-glyph">↓</span>下载 skill 目录</a>
+                        <p class="side-note">解压后放入你 AI 编程助手（Qoder / Claude Code / Cursor 等）的技能目录（如 ~/.agents/skills/）。之后一句话即可发起合并/新开分支申请并跟踪审核状态；仅发起申请，真实执行仍由人工审核。</p>
+                    </div>
+                </div>
+
                 <div class="panel side-actions">
                     <div class="panel-head">
                         <div>

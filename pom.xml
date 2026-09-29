@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.neil</groupId>
     <artifactId>gitManage</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <name>gitManage</name>
     <description>Demo project for Spring Boot</description>
     <properties>
@@ -141,6 +141,10 @@
                 <includes>
                     <include>**/*.*</include>
                 </includes>
+                <excludes>
+                    <!-- skill 依赖体积较大且无必要进 jar，安装时由 install 脚本 npm install -->
+                    <exclude>handday-git-branch/mcp/node_modules/**</exclude>
+                </excludes>
             </resource>
         </resources>
     </build>
