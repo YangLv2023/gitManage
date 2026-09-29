@@ -48,6 +48,18 @@ description: 通过 gitManage 审计系统发起 Git 分支合并申请与新开
 2. 用 `list_audit_records`（`gitType: "merge"`）做一次只读调用验证连通性。
    - 报"无法连接 gitManage 后端"：后端未启动，向用户说明需要先启动 gitManage 服务，初始化到此暂停（配置已就绪，后端起来即可用）。
 
+## 备注自动生成（remark）
+
+remark 必填，按以下顺序取值：
+1. 用户话语中已明确给出备注 → 直接使用。
+2. 未给出 → 获取 git 用户名：在当前工作目录运行 `git config user.name`；失败或为空再取 `git config --global user.name`（一般是中文名，原样使用）。
+3. 用 git 用户名拼接草稿，**与副作用确认一并向用户展示**（不要单独多问一轮）：
+   - 合并申请：`marge:<git用户名>+<功能说明>`，功能说明从用户意图推断（如“修复xxx”）；推断不出则在这轮确认时一并询问。
+   - 新开分支申请：`<git用户名>+<新开分支说明>`，说明可从新分支名或用户意图提炼。
+4. 两级 git 用户名都取不到（非 git 环境且无全局配置）→ 直接请用户提供备注。
+
+拼接时不要引入空格（空格会被自动替换为 —）；备注禁引号等 shell 元字符。
+
 ## 日常使用：发起合并申请
 
 从用户话语识别意图后，对照下表收集信息。**用户已说清的字段不重复问**，缺什么问什么，可一次问齐：
@@ -57,9 +69,9 @@ description: 通过 gitManage 审计系统发起 Git 分支合并申请与新开
 | serviceName | 是 | 枚举 6 选 1：billservice / goodsservice / StatisticsService / imexportservice / saassystemsetting / customerservice；用户说"bill 服务"即 billservice |
 | sourceBranch | 是 | 被合并的源分支，如 feature/dh/202403；可从用户当前工作分支推断，但需口头确认 |
 | targetBranch | 是 | 仅允许 pre / pre_temp（用户说"合到预发"= pre） |
-| remark | 是 | 建议格式 `marge:用户名+功能`；空格会被自动替换为 —，禁引号等元字符 |
+| remark | 是 | 按「备注自动生成」小节自动拼接草稿，随副作用确认一并向用户确认；格式 `marge:用户名+功能` |
 
-**触发前必须向用户确认**，明示副作用：提交后会通过企微机器人通知审核人，审核通过前代码不会被合并。用户确认后才调用 `submit_merge_request`，然后向用户报告返回的记录 ID、流水号与当前状态（待审）。
+**触发前必须向用户确认**（备注草稿一并展示，见「备注自动生成」），明示副作用：提交后会通过企微机器人通知审核人，审核通过前代码不会被合并。用户确认后才调用 `submit_merge_request`，然后向用户报告返回的记录 ID、流水号与当前状态（待审）。
 
 ## 日常使用：新开分支申请
 
@@ -68,7 +80,7 @@ description: 通过 gitManage 审计系统发起 Git 分支合并申请与新开
 | serviceName | 是 | 同上枚举 |
 | newBranch | 是 | 要新开的分支名，如 hotfix/dh/202609 |
 | sourceBranch | 是 | 基于哪个分支拉取，常用 uat / master；用户说"从 uat 拉"即 uat |
-| remark | 是 | 建议格式 `用户名+新开分支说明` |
+| remark | 是 | 按「备注自动生成」小节自动拼接草稿，随副作用确认一并向用户确认；格式 `用户名+新开分支说明` |
 
 **参数语义警示**：newBranch 是新分支名、sourceBranch 是来源分支，绝不能填反（工具入参已是业务语义命名，直接对应填写即可）。同样先确认副作用（企微通知审核人，审核通过前分支不会被创建），确认后调用 `submit_new_branch_request`。
 
